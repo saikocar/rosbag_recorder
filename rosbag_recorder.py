@@ -36,7 +36,7 @@ class TimedRosbagRecorder(Node):
             self.config = yaml.safe_load(f)
 
     def control_callback(self, msg):
-        if self.prev_control_state == 5 and not msg.state == 5:
+        if self.prev_control_state == AutowareState.DRIVING and not msg.state == AutowareState.DRIVING:
             self.memo_concat('AutoDrive cancel')
             self.should_record = True
         self.prev_control_state = msg.state
