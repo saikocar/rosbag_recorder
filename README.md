@@ -77,9 +77,13 @@ bash recorder_ui.sh
 
 以上のスクリプトから呼び出されたブラウザ上のページからメッセージを送る`(send)`することで記録中の区間及びその一つ前の区間が保存対象になります。
 
-```NOTE
-`ros2 topic pub --once /record_memo_text std_msgs/msg/String "{data: 'ここに残したいメッセージ'}"`を実行しても同様の動作する。
-```
+メッセージが存在しない場合データに保存する価値がないとみなして自動的に削除されます。
+
+現時点ではメッセージが送られた時と<control_topic>で確認しているautoware車両の走行が自動を中断した時にメッセージを記述して残すようになっています。
+
+NOTE
+
+`ros2 topic pub --once /record_memo_text std_msgs/msg/String "{data: 'ここに残したいメッセージ'}"`を実行しても同様の動作をします。
 
 ### 4. ディレクトリ構成
 
