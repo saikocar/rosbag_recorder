@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ROS2 Memo Publisher</title>
+  <script src="https://cdn.jsdelivr.net/npm/roslib/build/roslib.min.js"></script>
+</head>
+<body>
+  <h1>Send Memo to ROS2</h1>
+  <input type="text" id="memoInput" placeholder="Type your memo">
+  <button onclick="sendMemo()">Send with message</button>
+  <button onclick="sendMemo_fixed('obstacle avoidance error')">obstacle avoidance error</button>
+  <script>
+    // Connect to rosbridge WebSocket server
+    const ros = new ROSLIB.Ros({
+      url: 'ws://localhost:9090'
+    });
+
+    ros.on('connection', function() {
+      console.log('Connected to rosbridge WebSocket server.');
+    });
+
+    ros.on('error', function(error) {
+      console.error('Error connecting to rosbridge:', error);
+    });
+
+    ros.on('close', function() {
+      console.log('Connection to rosbridge closed.');
+    });
+
+    // Create a topic object
+    const memoTopic = new ROSLIB.Topic({
+      ros: ros,
+      name: '/record_memo_text',
+      messageType: 'std_msgs/String'
+    });
+
+    // Publish the memo
+    function sendMemo() {
+      const text = document.getElementById("memoInput").value;
+      const message = new ROSLIB.Message({
+        data: text
+      });
+      memoTopic.publish(message);
+      console.log('Published message:', text);
+    }
+    function sendMemo_fixed(message_fixed) {
+      const text = message_fixed;
+      const message = new ROSLIB.Message({
+        data: text
+      });
+      memoTopic.publish(message);
+      console.log('Published message:', text);
+    }
+    
+  </script>
+</body>
+</html>
