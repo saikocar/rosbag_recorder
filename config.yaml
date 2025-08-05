@@ -1,27 +1,53 @@
 record_topics:
-  - /can/pedal/clutch
-  - /can/steer/clutch
-  - /localization/kinematic_state
+  - /api/planning/velocity_factors
   - /diagnostics
-  # Mobileye デバッグ用？
-  - /sensing/camera/mobileye/can_rx
-  - /sensing/camera/mobileye/can_tx
-  - /perception/object_recognition/mobileye/detected_objects
-  # Centerpoint デバッグ用？
-  - /perception/object_recognition/detection/centerpoint/objects
-  - /perception/object_recognition/detection/centerpoint/validation/objects
-  - /perception/object_recognition/detection/clustering_centerpoint_merged_objects
-  # ペダルキャリブレーションに必要なtopic
   - /control/command/actuation_cmd
-  - /vehicle/status/steering_status
-  - /vehicle/status/velocity_status
-  - /vehicle/status/gear_status
+  - /control/command/control_cmd
+  - /can/pedal/can501
+  - /can/steer/can502
+  - /can/can100
   - /tf
   - /tf_static
-  - /can/can100
-  - /can/pedal/can_receive
-  - /sensing/vcan/vcan_accel_pedal_status_aw
-  - /sensing/vcan/can_tx
+  - /autoware/state
+  - /localization/kinematic_state
+  - /control/trajectory_follower/lateral/predicted_trajectory
+  - /planning/scenario_planning/lane_driving/behavior_planning/path
+  - /planning/scenario_planning/trajectory
+  - /planning/scenario_planning/lane_driving/motion_planning/obstacle_cruise_planner/debug/cruise/virtual_wall
+  - /planning/scenario_planning/lane_driving/motion_planning/obstacle_cruise_planner/debug/marker
+  - /planning/scenario_planning/lane_driving/motion_planning/obstacle_cruise_planner/debug/slow_down/virtual_wall
+  - /planning/scenario_planning/lane_driving/motion_planning/obstacle_cruise_planner/virtual_wall
+  - /perception/traffic_light_recognition/traffic_signals
+  - /perception/object_recognition/objects
+  - /perception/object_recognition/mobileye/tracked_objects
+  - /perception/object_recognition/tracking/objects
+  - /perception/object_recognition/detection/podman_debug/legacy_bevfusion
+  - /perception/object_recognition/detection/podman_debug/legacy_centerpoint
+  - /perception/object_recognition/detection/podman_debug/legacy_transfusion
+  - /vehicle/status/velocity_status
+  - /vehicle/status/velocity_status_cpt7
+  - /vehicle/status/velocity_status_pwrpak7
+  - /vehicle/status/velocity_status_vcan
+  - /system/operational_design_domain/autonomy_level
+  - /sensing/camera/mobileye/can_tx
+  - /sensing/camera/roscube/front_wide/image_rect
+  - /sensing/camera/roscube/front_wide/camera_info
+  - /sensing/imu/imu_data
+  - /perception/object_recognition/detection/rois0
+  - /sensing/camera/mobileye_eyeq2/can_tx
+  - /perception/occupancy_grid_map/map
+  - /sensing/lidar/concatenated/pointcloud
+  - /planning/mission_planning/route
+  - /sensing/gnss/fixposition/fpa/odomstatus
+  - /sensing/gnss/novatel_oem7/cpt7/rxstatus
+  - /sensing/gnss/novatel_oem7/isa100/rxstatus
+  - /planning/scenario_planning/lane_driving/motion_planning/obstacle_avoidance_planner/debug/marker
+  - /planning/debug/objects_of_interest/avoidance_by_lane_change_left
+  - /planning/debug/objects_of_interest/avoidance_by_lane_change_right
+  - /planning/debug/objects_of_interest/avoidance_left
+  - /planning/debug/objects_of_interest/avoidance_right
+  - /planning/debug/objects_of_interest/dynamic_avoidance
+  - /planning/scenario_planning/lane_driving/behavior_planning/behavior_path_planner/info/avoidance
 control_topic: /autoware/state
 memo_topic: /record_memo_text
 interval_sec: 60  # 秒
