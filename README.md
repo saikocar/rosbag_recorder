@@ -95,6 +95,3 @@ bash recorder_ui.sh
 
 Apache 2.0 License
 
----
-
-本リポジトリはROS2環境下での柔軟なデータ記録を目的としており、ログ取得や検証作業を効率化します。
