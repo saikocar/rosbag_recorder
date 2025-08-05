@@ -18,7 +18,7 @@ class TimedRosbagRecorder(Node):
         self.recording = False
         self.should_record = False
         self.previous_should_record = False
-        self.prev_control_state = 1
+        self.prev_control_state = AutowareState.INITIALIZING
         self.bag_process = None
         self.current_bag_path = None
         self.prev_bag_path = None
