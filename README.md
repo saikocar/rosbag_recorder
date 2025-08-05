@@ -83,7 +83,7 @@ bash recorder_ui.sh
 
 NOTE
 
-`ros2 topic pub --once /record_memo_text std_msgs/msg/String "{data: 'ここに残したいメッセージ'}"`を実行しても同様の動作をします。
+端末から`ros2 topic pub --once /record_memo_text std_msgs/msg/String "{data: 'ここに残したいメッセージ'}"`を実行しても同様の動作をします。
 
 ### 4. ディレクトリ構成
 
