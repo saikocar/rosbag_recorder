@@ -11,13 +11,17 @@
   <button onclick="sendMemo()">Send with message</button>
   <button onclick="sendMemo_fixed('obstacle avoidance error')">obstacle avoidance error</button>
   <script>
-    // Connect to rosbridge WebSocket server
+    // サーバーのIPアドレスを自動取得
+    const SERVER_IP = window.location.hostname; // HTTPサーバーにアクセスしたIP
+    const ROSBRIDGE_PORT = 9090;
+
+    // Connect to rosbridge WebSocket server on the server's IP
     const ros = new ROSLIB.Ros({
-      url: 'ws://localhost:9090'
+      url: 'ws://' + SERVER_IP + ':' + ROSBRIDGE_PORT
     });
 
     ros.on('connection', function() {
-      console.log('Connected to rosbridge WebSocket server.');
+      console.log('Connected to rosbridge WebSocket server at ' + SERVER_IP + ':' + ROSBRIDGE_PORT);
     });
 
     ros.on('error', function(error) {
@@ -45,6 +49,7 @@
       console.log('Published message:', text);
       alert("Published message:" + text);
     }
+
     function sendMemo_fixed(message_fixed) {
       const text = message_fixed;
       const message = new ROSLIB.Message({
@@ -54,7 +59,7 @@
       console.log('Published message:', text);
       alert("Published message:" + text);
     }
-    
   </script>
 </body>
 </html>
+
