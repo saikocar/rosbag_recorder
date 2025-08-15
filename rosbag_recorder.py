@@ -17,7 +17,7 @@ class TimedRosbagRecorder(Node):
 
         self.recording = False
         self.should_record = False
-        self.previous_should_record = False
+        self.prev_should_record = False
         self.prev_control_state = AutowareState.INITIALIZING
         self.bag_process = None
         self.current_bag_path = None
@@ -52,10 +52,10 @@ class TimedRosbagRecorder(Node):
         #else:
         #    self.get_logger().warn('Memo received but no current bag directory exists.')    
     def previous_memo_treat(self):
-        if self.previous_bag_path:
-            memo_path = os.path.join(self.current_bag_path, 'memo.txt')
+        if self.prev_bag_path:
+            memo_path = os.path.join(self.prev_bag_path, 'memo.txt')
             with open(memo_path, 'a') as f:
-                f.write(f"[{datetime.now()}] Memo entry queued for next bag file.")
+                f.write(f"[{datetime.now()}] Memo entry queued for next bag file.\n")
             #self.get_logger().info(f'Memo saved: {msg}')
         #else:
         #    self.get_logger().warn('Memo received but no current bag directory exists.')    
@@ -68,18 +68,20 @@ class TimedRosbagRecorder(Node):
     def rotate_bag(self):
         # 一度止める（前回の周期分）
         if self.recording:
+            #stop_bagでcurrentのpathがNoneにされる前に保持する
+            current_bag_path = self.current_bag_path
             self.stop_bag()
-            if not self.should_record and self.current_bag_path:
+            if not self.should_record and current_bag_path != None:
                 self.get_logger().info(f'Discarding unmarked bag: {self.current_bag_path}')
-                if self.previous_bag_path != None and not self.previous_should_record:
-                    shutil.rmtree(self.previous_bag_path, ignore_errors=True)
+                if self.prev_bag_path != None and not self.prev_should_record:
+                    shutil.rmtree(os.path.dirname(self.prev_bag_path), ignore_errors=True)
             else:
                 self.get_logger().info(f'Preserved bag: {self.current_bag_path}')
 
             # 判定フラグをリセット（次の周期用）
-            self.previous_should_record = self.should_record
+            self.prev_should_record = self.should_record
             self.should_record = False
-            self.previous_bag_path=self.current_bag_path
+            self.prev_bag_path=current_bag_path
 
         # 新しい録画を開始
         self.start_bag()
@@ -89,7 +91,7 @@ class TimedRosbagRecorder(Node):
         dir_date = now.strftime('%y%m%d%H%M%S')
         dir_time = now.strftime('%m%d%H%M%S')
         full_dir = os.path.join(self.config['bag_output_dir'], dir_date, dir_time)
-
+        print(full_dir)
         cmd = [
             'ros2', 'bag', 'record',
             '-o', full_dir
@@ -128,9 +130,9 @@ def main(args=None):
     finally:
         recorder.shutdown()
         recorder.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':
     main()
-
