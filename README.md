@@ -40,10 +40,14 @@ python3 rosbag_recorder.py
 ```
 
 ユーザーインターフェースの立ち上げ
+
+事前にrecorder_ui.shに対してexecutable bit(実行権限)を確認し、必要に応じて付与してください。
+
 ```bash
 ~/rosbag_recorder
 bash recorder_ui.sh
 ```
+ここに表示されたURLにブラウザでアクセスしてください。
 
 ## 使い方
 
@@ -90,7 +94,7 @@ NOTE
 記録は以下のような階層で保存されます：
 
 ```
-<bag_output_dir>/YYYYMMDD/MMDDHHMM/
+<bag_output_dir>/yyyymmdd/mmddHHMMSS/
   ├── memo.txt       # メモ（存在する場合）
   └── rosbagに関連するデータ
 ```
