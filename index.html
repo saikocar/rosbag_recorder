@@ -9,7 +9,15 @@
   <h1>Send Memo to ROS2</h1>
   <input type="text" id="memoInput" placeholder="Type your memo">
   <button onclick="sendMemo()">Send with message</button>
+  <label><input type="checkbox" id="MassageSwitch"> 連打防止alert用スイッチ(チェック時に表示する)</label>
+  </br>
   <button onclick="sendMemo_fixed('obstacle avoidance error')">obstacle avoidance error</button>
+  <button onclick="sendMemo_fixed('obstacle detection error')">obstacle detection error</button>
+  <button onclick="sendMemo_fixed('obstacle perception error')">obstacle perception error</button>
+  <button onclick="sendMemo_fixed('irregular brake')">irregular brake</button>
+  <button onclick="sendMemo_fixed('run out')">run out</button>
+  <button onclick="sendMemo_fixed('bad intersection')">bad intersection</button>
+  <button onclick="sendMemo_fixed('mrm')">mrm</button>
   <script>
     // サーバーのIPアドレスを自動取得
     const SERVER_IP = window.location.hostname; // HTTPサーバーにアクセスしたIP
@@ -47,7 +55,7 @@
       });
       memoTopic.publish(message);
       console.log('Published message:', text);
-      alert("Published message:" + text);
+      if(document.getElementById('MassageSwitch').checked){alert("Published message:" + text);}
     }
 
     function sendMemo_fixed(message_fixed) {
@@ -57,7 +65,7 @@
       });
       memoTopic.publish(message);
       console.log('Published message:', text);
-      alert("Published message:" + text);
+      if(document.getElementById('MassageSwitch').checked){alert("Published message:" + text);}
     }
   </script>
 </body>
