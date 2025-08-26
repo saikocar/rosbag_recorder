@@ -103,3 +103,6 @@ NOTE
 
 Apache 2.0 License
 
+## その他
+
+operatorScreenRecorderリポジトリのvideo_recorder.pyの改変物が必要になります
