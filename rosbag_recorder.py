@@ -10,6 +10,8 @@ import shutil
 
 from autoware_auto_system_msgs.msg import AutowareState
 
+from video_recorder import VideoRecorder,RawVideoSource
+
 class TimedRosbagRecorder(Node):
     def __init__(self, config_path):
         super().__init__('timed_rosbag_recorder')
@@ -23,6 +25,8 @@ class TimedRosbagRecorder(Node):
         self.current_bag_path = None
         self.prev_bag_path = None
         self.memo_phrase = ""
+        self.video = VideoRecorder()
+        self.video_source=RawVideoSource('/dev/video0', 'v4l2', 'mjpeg', (1920, 1080), 30),
 
         self.control_sub = self.create_subscription(
             AutowareState, self.config['control_topic'], self.control_callback, 10)
@@ -102,19 +106,12 @@ class TimedRosbagRecorder(Node):
         self.bag_process = subprocess.Popen(cmd)
 
         # ffmpeg コマンド
-        video_file = os.path.join(full_dir, 'screen_capture.mp4')
-        video_cmd = [
-            'ffmpeg',
-            '-y',  # 上書き
-            '-video_size', self.config.get('video_size', '1920x1080'),
-            '-framerate', str(self.config.get('framerate', 30)),
-            '-f', 'x11grab',
-            '-i', os.environ.get('DISPLAY', ':0.0'),
-            video_file
-        ]
-
-        self.get_logger().info(f'Starting screen recording: {" ".join(video_cmd)}')
-        self.video_process = subprocess.Popen(video_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        full_dir_video = os.path.join(self.config['bag_output_dir'],"video", dir_date, dir_time)
+        # 混ぜたいけどvideo.startにrosbag recordでのディレクトリ作成が間に合わない
+        os.makedirs(full_dir_video, exist_ok=True)
+        video_file = os.path.join(full_dir_video, 'screen_capture.mp4')        
+        print(video_file)
+        self.video.start(self.video_source, video_file)
 
         self.current_bag_path = full_dir
         self.recording = True
@@ -128,11 +125,7 @@ class TimedRosbagRecorder(Node):
         self.memo_treat()
         self.memo_phrase = ""
         # 動画停止
-        if self.video_process:
-            self.get_logger().info('Stopping screen recording...')
-            self.video_process.send_signal(signal.SIGINT)
-            self.video_process.wait()
-            self.video_process = None
+        self.video.stop();
 
         self.recording = False
         self.current_bag_path = None
