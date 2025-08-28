@@ -24,6 +24,8 @@ class TimedRosbagRecorder(Node):
         self.bag_process = None
         self.current_bag_path = None
         self.prev_bag_path = None
+        self.current_video_path = None
+        self.prev_video_path = None
         self.memo_phrase = ""
         self.video = VideoRecorder()
         self.video_source=RawVideoSource('/dev/video0', 'v4l2', 'mjpeg', (1920, 1080), 30),
@@ -74,11 +76,14 @@ class TimedRosbagRecorder(Node):
         if self.recording:
             #stop_bagでcurrentのpathがNoneにされる前に保持する
             current_bag_path = self.current_bag_path
+            current_video_path = self.current_video_path
             self.stop_bag()
             if not self.should_record and current_bag_path != None:
                 self.get_logger().info(f'Discarding unmarked bag: {self.current_bag_path}')
                 if self.prev_bag_path != None and not self.prev_should_record:
                     shutil.rmtree(os.path.dirname(self.prev_bag_path), ignore_errors=True)
+                    #videoの消去
+                    shutil.rmtree(os.path.dirname(self.prev_video_path), ignore_errors=True)
             else:
                 self.get_logger().info(f'Preserved bag: {self.current_bag_path}')
 
@@ -86,6 +91,7 @@ class TimedRosbagRecorder(Node):
             self.prev_should_record = self.should_record
             self.should_record = False
             self.prev_bag_path=current_bag_path
+            self.prev_video_path=current_video_path
 
         # 新しい録画を開始
         self.start_bag()
@@ -114,6 +120,7 @@ class TimedRosbagRecorder(Node):
         self.video.start(self.video_source, video_file)
 
         self.current_bag_path = full_dir
+        self.current_video_path = full_dir_video
         self.recording = True
 
     def stop_bag(self):
@@ -129,6 +136,7 @@ class TimedRosbagRecorder(Node):
 
         self.recording = False
         self.current_bag_path = None
+        self.current_video_path = None
 
 
     def shutdown(self):
