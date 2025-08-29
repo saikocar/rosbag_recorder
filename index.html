@@ -4,27 +4,31 @@
   <meta charset="utf-8">
   <title>ROS2 Memo Publisher</title>
   <script src="https://cdn.jsdelivr.net/npm/roslib/build/roslib.min.js"></script>
+    <style>
+    .big-button {padding: 10px 20px;}
+  </style>
 </head>
 <body>
   <h1>Send Memo to ROS2</h1>
   <input type="text" id="memoInput" placeholder="Type your memo">
-  <button onclick="sendMemo()">Send with message</button>
-  <label><input type="checkbox" id="MassageSwitch"> 連打防止alert用スイッチ(チェック時に表示する)</label>
-  </br>
-  <button onclick="sendMemo_fixed('obstacle avoidance error')">obstacle avoidance error</button>
-  <button onclick="sendMemo_fixed('obstacle detection error')">obstacle detection error</button>
-  <button onclick="sendMemo_fixed('obstacle perception error')">obstacle perception error</button>
-  <button onclick="sendMemo_fixed('irregular brake')">irregular brake</button>
-  <button onclick="sendMemo_fixed('run out')">run out</button>
-  <button onclick="sendMemo_fixed('bad intersection')">bad intersection</button>
-  <button onclick="sendMemo_fixed('mrm')">mrm</button>
+  <button class="big-button" onclick="sendMemo()">Send with message</button>
+  <label><input type="checkbox" id="MassageSwitch" checked> 連打防止alert用スイッチ(チェック時に表示する)</label>
   </br>
   </br>
-  <button onclick="sendMemo_fixed('誤検知')">誤検知</button>
-  <button onclick="sendMemo_fixed('見落とし')">見落とし</button>
-  <button onclick="sendMemo_fixed('不必要な停車')">不必要な停車</button>
-  <button onclick="sendMemo_fixed('停車失敗')">停車失敗</button>
-  <button onclick="sendMemo_fixed('車両の方向誤り')">車両の方向誤り</button>
+  <button class="big-button" onclick="sendMemo_fixed('obstacle avoidance error')">obstacle avoidance error</button>
+  <button class="big-button" onclick="sendMemo_fixed('obstacle detection error')">obstacle detection error</button>
+  <button class="big-button" onclick="sendMemo_fixed('obstacle perception error')">obstacle perception error</button>
+  <button class="big-button" onclick="sendMemo_fixed('irregular brake')">irregular brake</button>
+  <button class="big-button" onclick="sendMemo_fixed('run out')">run out</button>
+  <button class="big-button" onclick="sendMemo_fixed('bad intersection')">bad intersection</button>
+  <button class="big-button" onclick="sendMemo_fixed('mrm')">mrm</button>
+  </br>
+  </br>
+  <button class="big-button" onclick="sendMemo_fixed('誤検知')">誤検知</button>
+  <button class="big-button" onclick="sendMemo_fixed('見落とし')">見落とし</button>
+  <button class="big-button" onclick="sendMemo_fixed('不必要な停車')">不必要な停車</button>
+  <button class="big-button" onclick="sendMemo_fixed('停車失敗')">停車失敗</button>
+  <button class="big-button" onclick="sendMemo_fixed('車両の方向誤り')">車両の方向誤り</button>
 
   <script>
     // サーバーのIPアドレスを自動取得
