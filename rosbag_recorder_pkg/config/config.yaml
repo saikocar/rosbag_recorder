@@ -19,8 +19,11 @@ record_topics:
   - /planning/scenario_planning/lane_driving/motion_planning/obstacle_cruise_planner/virtual_wall
   - /perception/traffic_light_recognition/traffic_signals
   - /bevfusion_objects_modern
+  - /bevfusion_objects_modern_post
   - /centerpoint_objects_modern
+  - /centerpoint_objects_modern_post
   - /transfusion_objects_modern
+  - /transfusion_objects_modern_post
   - /perception/object_recognition/objects
   - /perception/object_recognition/mobileye/tracked_objects
   - /perception/object_recognition/tracking/objects
@@ -32,6 +35,8 @@ record_topics:
   - /vehicle/status/velocity_status_pwrpak7
   - /vehicle/status/velocity_status_vcan
   - /system/operational_design_domain/autonomy_level
+  - /system/operational_design_domain/lanelet_based_mode_switch
+  - /gmps_position_validator/debug/lateral_error
   - /sensing/camera/mobileye/can_tx
   - /sensing/camera/roscube/front_wide/image_rect
   - /sensing/camera/roscube/front_wide/camera_info
@@ -51,7 +56,21 @@ record_topics:
   - /planning/debug/objects_of_interest/avoidance_right
   - /planning/debug/objects_of_interest/dynamic_avoidance
   - /planning/scenario_planning/lane_driving/behavior_planning/behavior_path_planner/info/avoidance
+  - /planning/scenario_planning/lane_driving/behavior_planning/behavior_velocity_planner/debug/intersection
+  - /control/trajectory_follower/controller_node_exe/debug/predicted_trajectory_in_frenet_coordinate
+  - /control/trajectory_follower/controller_node_exe/lateral/debug/processing_time_ms
+  - /control/trajectory_follower/controller_node_exe/longitudinal/debug/processing_time_ms
+  - /control/trajectory_follower/controller_node_exe/output/debug_marker
+  - /control/trajectory_follower/controller_node_exe/output/estimated_steer_offset
+  - /control/trajectory_follower/lateral/diagnostic
+  - /control/trajectory_follower/lateral/predicted_trajectory
+  - /control/trajectory_follower/longitudinal/diagnostic
+  - /control/trajectory_follower/longitudinal/slope_angle
+  - /control/trajectory_follower/longitudinal/stop_reason
+  - /modern_perception_container/radar_front_driver/map_filtered_modern_detected_objects
+  - /perception/object_recognition/mobileye/modern_detected_objects
 control_topic: /autoware/state
 memo_topic: /record_memo_text
+mrm_topic: /system/fail_safe/mrm_state  # autonomy_level_based_emergency_handler output
 interval_sec: 60  # 秒
 bag_output_dir: /media/sit/e14ce0d0-9e97-4947-a74d-76b62cd49319/rosbag_save/  # ベースディレクトリ

@@ -10,6 +10,7 @@ import shutil
 import sys
 
 from autoware_auto_system_msgs.msg import AutowareState
+from autoware_adapi_v1_msgs.msg import MrmState
 
 from .video_recorder import VideoRecorder,RawVideoSource
 
@@ -22,6 +23,7 @@ class TimedRosbagRecorder(Node):
         self.should_record = False
         self.prev_should_record = False
         self.prev_control_state = AutowareState.INITIALIZING
+        self.prev_mrm_state = MrmState.NORMAL
         self.bag_process = None
         self.current_bag_path = None
         self.prev_bag_path = None
@@ -33,6 +35,9 @@ class TimedRosbagRecorder(Node):
 
         self.control_sub = self.create_subscription(
             AutowareState, self.config['control_topic'], self.control_callback, 10)
+        self.mrm_sub = self.create_subscription(
+            MrmState, self.config.get('mrm_topic', '/system/emergency/mrm/state'),
+            self.mrm_callback, 10)
         self.memo_sub = self.create_subscription(
             String, self.config['memo_topic'], self.memo_callback, 10)
         self.rotate_bag()
@@ -44,9 +49,62 @@ class TimedRosbagRecorder(Node):
 
     def control_callback(self, msg):
         if self.prev_control_state == AutowareState.DRIVING and not msg.state == AutowareState.DRIVING:
-            self.memo_concat('AutoDrive cancel')
+            self.memo_concat('AutoDrive disengage')
             self.should_record = True
         self.prev_control_state = msg.state
+
+    def mrm_callback(self, msg):
+        if msg.state != self.prev_mrm_state:
+            state_names = {
+                MrmState.NORMAL: 'NORMAL',
+                MrmState.MRM_OPERATING: 'MRM_OPERATING',
+                MrmState.MRM_SUCCEEDED: 'MRM_SUCCEEDED',
+                MrmState.MRM_FAILED: 'MRM_FAILED',
+            }
+            behavior_names = {
+                MrmState.NONE: 'NONE',
+                MrmState.COMFORTABLE_STOP: 'COMFORTABLE_STOP',
+                MrmState.EMERGENCY_STOP: 'EMERGENCY_STOP',
+                MrmState.PULL_OVER: 'PULL_OVER',
+            }
+            state_str = state_names.get(msg.state, str(msg.state))
+            behavior_str = behavior_names.get(msg.behavior, str(msg.behavior))
+
+            if msg.state != MrmState.NORMAL:
+                self.memo_concat(f'MRM {state_str} behavior={behavior_str}')
+                self.should_record = True
+                self.previous_memo_treat()
+                self._save_system_logs()
+                self.get_logger().warn(f'MRM detected: {state_str} behavior={behavior_str}')
+
+        self.prev_mrm_state = msg.state
+
+    def _save_system_logs(self):
+        """Save dmesg and journalctl logs when MRM occurs."""
+        if not self.current_bag_path:
+            return
+        try:
+            log_dir = os.path.join(self.current_bag_path, 'system_logs')
+            os.makedirs(log_dir, exist_ok=True)
+            ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+            # dmesg --color=always (last 5 min, with ISO timestamps for easy correlation)
+            dmesg_path = os.path.join(log_dir, f'dmesg_{ts}.txt')
+            with open(dmesg_path, 'w') as f:
+                subprocess.run(
+                    ['dmesg', '--color=always', '--time-format=iso', '-T', '--since=-300'],
+                    stdout=f, stderr=subprocess.DEVNULL, timeout=5)
+
+            # journalctl -b (current boot, last 5 min, with priority info and above)
+            journal_path = os.path.join(log_dir, f'journalctl_{ts}.txt')
+            with open(journal_path, 'w') as f:
+                subprocess.run(
+                    ['journalctl', '-b', '0', '--since=-5min', '--no-pager', '-o', 'short-iso'],
+                    stdout=f, stderr=subprocess.DEVNULL, timeout=10)
+
+            self.get_logger().info(f'System logs saved to {log_dir}')
+        except Exception as e:
+            self.get_logger().error(f'Failed to save system logs: {e}')
 
     def memo_concat(self,msg: str):
         self.memo_phrase+=f"[{datetime.now()}] {msg}\n"
@@ -105,7 +163,7 @@ class TimedRosbagRecorder(Node):
         print(full_dir)
         cmd = [
             'ros2', 'bag', 'record',
-            '-o', full_dir
+            '-o', full_dir, '--no-discovery'
         ] + self.config['record_topics']
         print(cmd)
 
