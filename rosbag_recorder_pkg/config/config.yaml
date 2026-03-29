@@ -72,5 +72,9 @@ record_topics:
 control_topic: /autoware/state
 memo_topic: /record_memo_text
 mrm_topic: /system/fail_safe/mrm_state  # autonomy_level_based_emergency_handler output
+hazard_topic: /system/emergency/hazard_status  # HazardStatus (SPF diagnostics for MRM cause)
 interval_sec: 60  # 秒
 bag_output_dir: /media/sit/e14ce0d0-9e97-4947-a74d-76b62cd49319/rosbag_save/  # ベースディレクトリ
+remote_log_hosts:  # MRM時にdmesg/journalctlを取得するリモートホスト（ssh接続可能であること）
+  - sit@roscube
+  - sit@ava2

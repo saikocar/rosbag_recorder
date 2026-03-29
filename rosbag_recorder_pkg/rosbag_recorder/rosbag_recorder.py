@@ -8,9 +8,11 @@ from datetime import datetime
 import signal
 import shutil
 import sys
+import threading
 
 from autoware_auto_system_msgs.msg import AutowareState
 from autoware_adapi_v1_msgs.msg import MrmState
+from tier4_system_msgs.msg import HazardStatus
 
 from .video_recorder import VideoRecorder,RawVideoSource
 
@@ -24,6 +26,7 @@ class TimedRosbagRecorder(Node):
         self.prev_should_record = False
         self.prev_control_state = AutowareState.INITIALIZING
         self.prev_mrm_state = MrmState.NORMAL
+        self.last_hazard_status = None
         self.bag_process = None
         self.current_bag_path = None
         self.prev_bag_path = None
@@ -36,8 +39,11 @@ class TimedRosbagRecorder(Node):
         self.control_sub = self.create_subscription(
             AutowareState, self.config['control_topic'], self.control_callback, 10)
         self.mrm_sub = self.create_subscription(
-            MrmState, self.config.get('mrm_topic', '/system/emergency/mrm/state'),
+            MrmState, self.config.get('mrm_topic', '/system/fail_safe/mrm_state'),
             self.mrm_callback, 10)
+        self.hazard_sub = self.create_subscription(
+            HazardStatus, self.config.get('hazard_topic', '/system/emergency/hazard_status'),
+            self.hazard_callback, 10)
         self.memo_sub = self.create_subscription(
             String, self.config['memo_topic'], self.memo_callback, 10)
         self.rotate_bag()
@@ -52,6 +58,10 @@ class TimedRosbagRecorder(Node):
             self.memo_concat('AutoDrive disengage')
             self.should_record = True
         self.prev_control_state = msg.state
+
+    def hazard_callback(self, msg):
+        """Cache latest HazardStatus for use when MRM triggers."""
+        self.last_hazard_status = msg
 
     def mrm_callback(self, msg):
         if msg.state != self.prev_mrm_state:
@@ -71,16 +81,32 @@ class TimedRosbagRecorder(Node):
             behavior_str = behavior_names.get(msg.behavior, str(msg.behavior))
 
             if msg.state != MrmState.NORMAL:
-                self.memo_concat(f'MRM {state_str} behavior={behavior_str}')
+                # Build MRM memo with HazardStatus SPF diagnostics
+                memo_lines = [f'MRM {state_str} behavior={behavior_str}']
+                if self.last_hazard_status:
+                    level_names = {0: 'NF', 1: 'SF', 2: 'LF', 3: 'SPF'}
+                    hs = self.last_hazard_status
+                    memo_lines.append(f'  hazard_level={level_names.get(hs.level, str(hs.level))} emergency={hs.emergency}')
+                    if hs.diagnostics_spf:
+                        memo_lines.append('  SPF diagnostics:')
+                        for diag in hs.diagnostics_spf:
+                            memo_lines.append(f'    [{diag.name}] {diag.message}')
+                    if hs.diagnostics_lf:
+                        memo_lines.append('  LF diagnostics:')
+                        for diag in hs.diagnostics_lf[:5]:  # limit to 5
+                            memo_lines.append(f'    [{diag.name}] {diag.message}')
+
+                self.memo_concat('\n'.join(memo_lines))
                 self.should_record = True
                 self.previous_memo_treat()
-                self._save_system_logs()
+                # Save system logs in background to avoid blocking ROS callbacks
+                threading.Thread(target=self._save_system_logs, daemon=True).start()
                 self.get_logger().warn(f'MRM detected: {state_str} behavior={behavior_str}')
 
         self.prev_mrm_state = msg.state
 
     def _save_system_logs(self):
-        """Save dmesg and journalctl logs when MRM occurs."""
+        """Save dmesg and journalctl logs when MRM occurs (local + remote hosts)."""
         if not self.current_bag_path:
             return
         try:
@@ -88,23 +114,42 @@ class TimedRosbagRecorder(Node):
             os.makedirs(log_dir, exist_ok=True)
             ts = datetime.now().strftime('%Y%m%d_%H%M%S')
 
-            # dmesg --color=always (last 5 min, with ISO timestamps for easy correlation)
-            dmesg_path = os.path.join(log_dir, f'dmesg_{ts}.txt')
-            with open(dmesg_path, 'w') as f:
-                subprocess.run(
-                    ['dmesg', '--color=always', '--time-format=iso', '-T', '--since=-300'],
-                    stdout=f, stderr=subprocess.DEVNULL, timeout=5)
+            # Local host logs
+            self._save_host_logs(log_dir, ts, 'local')
 
-            # journalctl -b (current boot, last 5 min, with priority info and above)
-            journal_path = os.path.join(log_dir, f'journalctl_{ts}.txt')
-            with open(journal_path, 'w') as f:
-                subprocess.run(
-                    ['journalctl', '-b', '0', '--since=-5min', '--no-pager', '-o', 'short-iso'],
-                    stdout=f, stderr=subprocess.DEVNULL, timeout=10)
+            # Remote host logs (roscube, sub PCs, etc.)
+            remote_hosts = self.config.get('remote_log_hosts', [])
+            for host in remote_hosts:
+                self._save_host_logs(log_dir, ts, host)
 
             self.get_logger().info(f'System logs saved to {log_dir}')
         except Exception as e:
             self.get_logger().error(f'Failed to save system logs: {e}')
+
+    def _save_host_logs(self, log_dir, ts, host):
+        """Save dmesg and journalctl for a given host ('local' or ssh hostname)."""
+        try:
+            prefix = host if host != 'local' else 'local'
+
+            if host == 'local':
+                dmesg_cmd = ['dmesg', '--color=always', '--time-format=iso', '-T', '--since=-300']
+                journal_cmd = ['journalctl', '-b', '0', '--since=-5min', '--no-pager', '-o', 'short-iso']
+            else:
+                dmesg_cmd = ['ssh', '-o', 'ConnectTimeout=3', host,
+                             'dmesg --color=always --time-format=iso -T --since=-300']
+                journal_cmd = ['ssh', '-o', 'ConnectTimeout=3', host,
+                               'journalctl -b 0 --since=-5min --no-pager -o short-iso']
+
+            dmesg_path = os.path.join(log_dir, f'dmesg_{prefix}_{ts}.txt')
+            with open(dmesg_path, 'w') as f:
+                subprocess.run(dmesg_cmd, stdout=f, stderr=subprocess.DEVNULL, timeout=10)
+
+            journal_path = os.path.join(log_dir, f'journalctl_{prefix}_{ts}.txt')
+            with open(journal_path, 'w') as f:
+                subprocess.run(journal_cmd, stdout=f, stderr=subprocess.DEVNULL, timeout=10)
+
+        except Exception as e:
+            self.get_logger().warn(f'Failed to get logs from {host}: {e}')
 
     def memo_concat(self,msg: str):
         self.memo_phrase+=f"[{datetime.now()}] {msg}\n"
