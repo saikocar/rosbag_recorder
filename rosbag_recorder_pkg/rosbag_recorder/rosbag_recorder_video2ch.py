@@ -59,7 +59,7 @@ class TimedRosbagRecorder(Node):
 
     def control_callback(self, msg):
         if self.prev_control_state == AutowareState.DRIVING and not msg.state == AutowareState.DRIVING:
-            self.memo_concat('AutoDrive cancel')
+            self.memo_concat('AutoDrive disengage')
             self.should_record = True
         self.prev_control_state = msg.state
 

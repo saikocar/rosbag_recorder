@@ -76,7 +76,7 @@ class VideoRecorder:
         if self.ffmpeg_process is not None:
             raise RuntimeError('Recording process is already running')
 
-        ffmpeg_args = [which('ffmpeg'), '-hide_banner', '-loglevel', 'info']
+        ffmpeg_args = [which('ffmpeg'), '-hide_banner', '-loglevel', 'info', '-hwaccel', 'cuda']
         input_args = sum(map(lambda s: s.to_ffmpeg_args(), input_sources), [])
         #output_args = ['-c:v', self.video_encoder, f'videos/{output_name}.mkv']
         output_args = ['-c:v', self.video_encoder, f'{output_name}.mkv']
