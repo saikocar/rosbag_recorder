@@ -4,13 +4,25 @@ from std_msgs.msg import Bool, String
 import yaml
 import subprocess
 import os
+import re
 from datetime import datetime
 import signal
 import shutil
+import sys
+import threading
 
 from autoware_auto_system_msgs.msg import AutowareState
+from autoware_adapi_v1_msgs.msg import MrmState
+from tier4_system_msgs.msg import HazardStatus
+from rviz_2d_overlay_msgs.msg import OverlayText
 
-from video_recorder import VideoRecorder,RawVideoSource
+from .video_recorder import VideoRecorder,RawVideoSource
+
+# TODO: 実運用前に対象区間に合わせて書き換える
+ON_LANELET_ID = 87984
+OFF_LANELET_ID = 134130
+# in_segment中に rotate_bag をスキップし続ける上限。超過時は failsafe で強制離脱。
+ROTATE_SKIP_FAILSAFE_LIMIT = 30
 
 class TimedRosbagRecorder(Node):
     def __init__(self, config_path):
@@ -21,6 +33,10 @@ class TimedRosbagRecorder(Node):
         self.should_record = False
         self.prev_should_record = False
         self.prev_control_state = AutowareState.INITIALIZING
+        self.prev_mrm_state = MrmState.NORMAL
+        self.last_hazard_status = None
+        self.in_segment = False
+        self.rotate_skip_count = 0
         self.bag_process = None
         self.current_bag_path = None
         self.prev_bag_path = None
@@ -28,12 +44,22 @@ class TimedRosbagRecorder(Node):
         self.prev_video_path = None
         self.memo_phrase = ""
         self.video = VideoRecorder()
-        self.video_source=RawVideoSource('/dev/video0', 'v4l2', 'mjpeg', (1920, 1080), 30),
+        self.video_source=RawVideoSource('/dev/v4l/by-id/usb-MACROSILICON_C7_USB3.0_Video_41475953-video-index0', 'v4l2', 'mjpeg', (1920, 1080), 30),
 
         self.control_sub = self.create_subscription(
             AutowareState, self.config['control_topic'], self.control_callback, 10)
+        self.mrm_sub = self.create_subscription(
+            MrmState, self.config.get('mrm_topic', '/system/fail_safe/mrm_state'),
+            self.mrm_callback, 10)
+        self.hazard_sub = self.create_subscription(
+            HazardStatus, self.config.get('hazard_topic', '/system/emergency/hazard_status'),
+            self.hazard_callback, 10)
         self.memo_sub = self.create_subscription(
             String, self.config['memo_topic'], self.memo_callback, 10)
+        self.lanelet_info_sub = self.create_subscription(
+            OverlayText,
+            self.config.get('lanelet_info_topic', '/map/lanelet_param/current_lanelet_info_text'),
+            self.lanelet_info_callback, 10)
         self.rotate_bag()
         self.timer = self.create_timer(self.config['interval_sec'], self.rotate_bag)
 
@@ -43,9 +69,101 @@ class TimedRosbagRecorder(Node):
 
     def control_callback(self, msg):
         if self.prev_control_state == AutowareState.DRIVING and not msg.state == AutowareState.DRIVING:
-            self.memo_concat('AutoDrive cancel')
+            self.memo_concat('AutoDrive disengage')
             self.should_record = True
         self.prev_control_state = msg.state
+
+    def hazard_callback(self, msg):
+        """Cache latest HazardStatus for use when MRM triggers."""
+        self.last_hazard_status = msg
+
+    def mrm_callback(self, msg):
+        if msg.state != self.prev_mrm_state:
+            state_names = {
+                MrmState.NORMAL: 'NORMAL',
+                MrmState.MRM_OPERATING: 'MRM_OPERATING',
+                MrmState.MRM_SUCCEEDED: 'MRM_SUCCEEDED',
+                MrmState.MRM_FAILED: 'MRM_FAILED',
+            }
+            behavior_names = {
+                MrmState.NONE: 'NONE',
+                MrmState.COMFORTABLE_STOP: 'COMFORTABLE_STOP',
+                MrmState.EMERGENCY_STOP: 'EMERGENCY_STOP',
+                MrmState.PULL_OVER: 'PULL_OVER',
+            }
+            state_str = state_names.get(msg.state, str(msg.state))
+            behavior_str = behavior_names.get(msg.behavior, str(msg.behavior))
+
+            if msg.state != MrmState.NORMAL:
+                # Build MRM memo with HazardStatus SPF diagnostics
+                memo_lines = [f'MRM {state_str} behavior={behavior_str}']
+                if self.last_hazard_status:
+                    level_names = {0: 'NF', 1: 'SF', 2: 'LF', 3: 'SPF'}
+                    hs = self.last_hazard_status
+                    memo_lines.append(f'  hazard_level={level_names.get(hs.level, str(hs.level))} emergency={hs.emergency}')
+                    if hs.diagnostics_spf:
+                        memo_lines.append('  SPF diagnostics:')
+                        for diag in hs.diagnostics_spf:
+                            memo_lines.append(f'    [{diag.name}] {diag.message}')
+                    if hs.diagnostics_lf:
+                        memo_lines.append('  LF diagnostics:')
+                        for diag in hs.diagnostics_lf[:5]:  # limit to 5
+                            memo_lines.append(f'    [{diag.name}] {diag.message}')
+
+                self.memo_concat('\n'.join(memo_lines))
+                self.should_record = True
+                self.previous_memo_treat()
+                # Save system logs in background to avoid blocking ROS callbacks
+                threading.Thread(target=self._save_system_logs, daemon=True).start()
+                self.get_logger().warn(f'MRM detected: {state_str} behavior={behavior_str}')
+
+        self.prev_mrm_state = msg.state
+
+    def _save_system_logs(self):
+        """Save dmesg and journalctl logs when MRM occurs (local + remote hosts)."""
+        if not self.current_bag_path:
+            return
+        try:
+            log_dir = os.path.join(self.current_bag_path, 'system_logs')
+            os.makedirs(log_dir, exist_ok=True)
+            ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+            # Local host logs
+            self._save_host_logs(log_dir, ts, 'local')
+
+            # Remote host logs (roscube, sub PCs, etc.)
+            remote_hosts = self.config.get('remote_log_hosts', [])
+            for host in remote_hosts:
+                self._save_host_logs(log_dir, ts, host)
+
+            self.get_logger().info(f'System logs saved to {log_dir}')
+        except Exception as e:
+            self.get_logger().error(f'Failed to save system logs: {e}')
+
+    def _save_host_logs(self, log_dir, ts, host):
+        """Save dmesg and journalctl for a given host ('local' or ssh hostname)."""
+        try:
+            prefix = host if host != 'local' else 'local'
+
+            if host == 'local':
+                dmesg_cmd = ['dmesg', '--color=always', '--time-format=iso', '-T', '--since=-300']
+                journal_cmd = ['journalctl', '-b', '0', '--since=-5min', '--no-pager', '-o', 'short-iso']
+            else:
+                dmesg_cmd = ['ssh', '-o', 'ConnectTimeout=3', host,
+                             'dmesg --color=always --time-format=iso -T --since=-300']
+                journal_cmd = ['ssh', '-o', 'ConnectTimeout=3', host,
+                               'journalctl -b 0 --since=-5min --no-pager -o short-iso']
+
+            dmesg_path = os.path.join(log_dir, f'dmesg_{prefix}_{ts}.txt')
+            with open(dmesg_path, 'w') as f:
+                subprocess.run(dmesg_cmd, stdout=f, stderr=subprocess.DEVNULL, timeout=10)
+
+            journal_path = os.path.join(log_dir, f'journalctl_{prefix}_{ts}.txt')
+            with open(journal_path, 'w') as f:
+                subprocess.run(journal_cmd, stdout=f, stderr=subprocess.DEVNULL, timeout=10)
+
+        except Exception as e:
+            self.get_logger().warn(f'Failed to get logs from {host}: {e}')
 
     def memo_concat(self,msg: str):
         self.memo_phrase+=f"[{datetime.now()}] {msg}\n"
@@ -66,12 +184,46 @@ class TimedRosbagRecorder(Node):
         #else:
         #    self.get_logger().warn('Memo received but no current bag directory exists.')    
     
-    def memo_callback(self, msg: String):
+    def _record_memo(self, text: str):
+        """memo_callback と同じ流れ（記録フラグON＋メモ追記＋前バッグへの通知）。"""
         self.should_record = True
-        self.memo_concat(msg.data)
+        self.memo_concat(text)
         self.previous_memo_treat()
 
+    def lanelet_info_callback(self, msg: OverlayText):
+        match = re.search(r'Current ID\s*:\s*(\d+)', msg.text)
+        if not match:
+            return
+        lanelet_id = int(match.group(1))
+        if lanelet_id == ON_LANELET_ID and not self.in_segment:
+            self.in_segment = True
+            self.rotate_skip_count = 0
+            self._record_memo('enter segment')
+            self.get_logger().info(f'in_segment -> True (lanelet {lanelet_id})')
+        elif lanelet_id == OFF_LANELET_ID and self.in_segment:
+            self.in_segment = False
+            self._record_memo('leave segment')
+            self.get_logger().info(f'in_segment -> False (lanelet {lanelet_id})')
+
+    def memo_callback(self, msg: String):
+        self._record_memo(msg.data)
+
     def rotate_bag(self):
+        # in_segment中は1本の長いバッグとして残したいのでローテーションをスキップ
+        if self.in_segment:
+            self.rotate_skip_count += 1
+            if self.rotate_skip_count >= ROTATE_SKIP_FAILSAFE_LIMIT:
+                self.get_logger().warn(
+                    f'rotate_bag skipped {self.rotate_skip_count} times; forcing leave segment')
+                self.in_segment = False
+                self.rotate_skip_count = 0
+                self._record_memo('leave segment(failsafe)')
+                # fall through してローテーション実行
+            else:
+                self.get_logger().info(
+                    f'rotate_bag skipped (in_segment), count={self.rotate_skip_count}')
+                return
+
         # 一度止める（前回の周期分）
         if self.recording:
             #stop_bagでcurrentのpathがNoneにされる前に保持する
@@ -104,7 +256,7 @@ class TimedRosbagRecorder(Node):
         print(full_dir)
         cmd = [
             'ros2', 'bag', 'record',
-            '-o', full_dir
+            '-o', full_dir, '--no-discovery'
         ] + self.config['record_topics']
         print(cmd)
 
@@ -132,7 +284,7 @@ class TimedRosbagRecorder(Node):
         self.memo_treat()
         self.memo_phrase = ""
         # 動画停止
-        self.video.stop();
+        self.video.stop()
 
         self.recording = False
         self.current_bag_path = None
@@ -145,7 +297,11 @@ class TimedRosbagRecorder(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    recorder = TimedRosbagRecorder(config_path='config.yaml')
+    if len(sys.argv) > 1:
+        config_path = sys.argv[1]
+    else:
+        config_path = 'config.yaml'
+    recorder = TimedRosbagRecorder(config_path)
     try:
         rclpy.spin(recorder)
     except KeyboardInterrupt:
