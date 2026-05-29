@@ -4,6 +4,7 @@ from std_msgs.msg import Bool, String
 import yaml
 import subprocess
 import os
+import re
 from datetime import datetime
 import signal
 import shutil
@@ -13,8 +14,15 @@ import threading
 from autoware_auto_system_msgs.msg import AutowareState
 from autoware_adapi_v1_msgs.msg import MrmState
 from tier4_system_msgs.msg import HazardStatus
+from rviz_2d_overlay_msgs.msg import OverlayText
 
 from .video_recorder import VideoRecorder,RawVideoSource
+
+# TODO: 実運用前に対象区間に合わせて書き換える
+ON_LANELET_ID = 87984
+OFF_LANELET_ID = 134130
+# in_segment中に rotate_bag をスキップし続ける上限。超過時は failsafe で強制離脱。
+ROTATE_SKIP_FAILSAFE_LIMIT = 30
 
 class TimedRosbagRecorder(Node):
     def __init__(self, config_path):
@@ -27,6 +35,8 @@ class TimedRosbagRecorder(Node):
         self.prev_control_state = AutowareState.INITIALIZING
         self.prev_mrm_state = MrmState.NORMAL
         self.last_hazard_status = None
+        self.in_segment = False
+        self.rotate_skip_count = 0
         self.bag_process = None
         self.current_bag_path = None
         self.prev_bag_path = None
@@ -46,6 +56,10 @@ class TimedRosbagRecorder(Node):
             self.hazard_callback, 10)
         self.memo_sub = self.create_subscription(
             String, self.config['memo_topic'], self.memo_callback, 10)
+        self.lanelet_info_sub = self.create_subscription(
+            OverlayText,
+            self.config.get('lanelet_info_topic', '/map/lanelet_param/current_lanelet_info_text'),
+            self.lanelet_info_callback, 10)
         self.rotate_bag()
         self.timer = self.create_timer(self.config['interval_sec'], self.rotate_bag)
 
@@ -170,12 +184,46 @@ class TimedRosbagRecorder(Node):
         #else:
         #    self.get_logger().warn('Memo received but no current bag directory exists.')    
     
-    def memo_callback(self, msg: String):
+    def _record_memo(self, text: str):
+        """memo_callback と同じ流れ（記録フラグON＋メモ追記＋前バッグへの通知）。"""
         self.should_record = True
-        self.memo_concat(msg.data)
+        self.memo_concat(text)
         self.previous_memo_treat()
 
+    def lanelet_info_callback(self, msg: OverlayText):
+        match = re.search(r'Current ID\s*:\s*(\d+)', msg.text)
+        if not match:
+            return
+        lanelet_id = int(match.group(1))
+        if lanelet_id == ON_LANELET_ID and not self.in_segment:
+            self.in_segment = True
+            self.rotate_skip_count = 0
+            self._record_memo('enter segment')
+            self.get_logger().info(f'in_segment -> True (lanelet {lanelet_id})')
+        elif lanelet_id == OFF_LANELET_ID and self.in_segment:
+            self.in_segment = False
+            self._record_memo('leave segment')
+            self.get_logger().info(f'in_segment -> False (lanelet {lanelet_id})')
+
+    def memo_callback(self, msg: String):
+        self._record_memo(msg.data)
+
     def rotate_bag(self):
+        # in_segment中は1本の長いバッグとして残したいのでローテーションをスキップ
+        if self.in_segment:
+            self.rotate_skip_count += 1
+            if self.rotate_skip_count >= ROTATE_SKIP_FAILSAFE_LIMIT:
+                self.get_logger().warn(
+                    f'rotate_bag skipped {self.rotate_skip_count} times; forcing leave segment')
+                self.in_segment = False
+                self.rotate_skip_count = 0
+                self._record_memo('leave segment(failsafe)')
+                # fall through してローテーション実行
+            else:
+                self.get_logger().info(
+                    f'rotate_bag skipped (in_segment), count={self.rotate_skip_count}')
+                return
+
         # 一度止める（前回の周期分）
         if self.recording:
             #stop_bagでcurrentのpathがNoneにされる前に保持する
