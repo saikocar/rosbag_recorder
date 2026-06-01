@@ -19,8 +19,8 @@ from rviz_2d_overlay_msgs.msg import OverlayText
 from .video_recorder import VideoRecorder,RawVideoSource
 
 # TODO: 実運用前に対象区間に合わせて書き換える
-ON_LANELET_ID = 87984
-OFF_LANELET_ID = 134130
+ON_LANELET_ID = 9602 #87984
+OFF_LANELET_ID = 2766 #134130
 # in_segment中に rotate_bag をスキップし続ける上限。超過時は failsafe で強制離脱。
 ROTATE_SKIP_FAILSAFE_LIMIT = 30
 
