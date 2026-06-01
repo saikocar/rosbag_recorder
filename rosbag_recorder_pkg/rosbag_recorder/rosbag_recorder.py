@@ -62,6 +62,7 @@ class TimedRosbagRecorder(Node):
             self.lanelet_info_callback, 10)
         self.rotate_bag()
         self.timer = self.create_timer(self.config['interval_sec'], self.rotate_bag)
+        self.get_logger().info(f'ON_LANELET_ID: {ON_LANELET_ID} ,OFF_LANELET_ID: {OFF_LANELET_ID}')
 
     def load_config(self, path):
         with open(path, 'r') as f:
