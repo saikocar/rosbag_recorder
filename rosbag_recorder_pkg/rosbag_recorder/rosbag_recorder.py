@@ -13,8 +13,12 @@ import threading
 from autoware_auto_system_msgs.msg import AutowareState
 from autoware_adapi_v1_msgs.msg import MrmState
 from tier4_system_msgs.msg import HazardStatus
+from vehicle_std_msgs.msg import Uint8 as VehicleUint8
 
 from .video_recorder import VideoRecorder,RawVideoSource
+
+# in_segment中に rotate_bag をスキップし続ける上限。超過時は failsafe で強制離脱。
+ROTATE_SKIP_FAILSAFE_LIMIT = 30
 
 class TimedRosbagRecorder(Node):
     def __init__(self, config_path):
@@ -27,12 +31,17 @@ class TimedRosbagRecorder(Node):
         self.prev_control_state = AutowareState.INITIALIZING
         self.prev_mrm_state = MrmState.NORMAL
         self.last_hazard_status = None
+        self.in_segment = False
+        self.rotate_skip_count = 0
+        self.prev_autonomy_level = 0
         self.bag_process = None
         self.current_bag_path = None
         self.prev_bag_path = None
         self.current_video_path = None
         self.prev_video_path = None
         self.memo_phrase = ""
+        # config.yamlのvideo_enabled: falseでffmpegによる動画録画を無効化できる(既定: 有効)
+        self.video_enabled = bool(self.config.get('video_enabled', True))
         self.video = VideoRecorder()
         self.video_source=RawVideoSource('/dev/v4l/by-id/usb-MACROSILICON_C7_USB3.0_Video_41475953-video-index0', 'v4l2', 'mjpeg', (1920, 1080), 30),
 
@@ -46,6 +55,10 @@ class TimedRosbagRecorder(Node):
             self.hazard_callback, 10)
         self.memo_sub = self.create_subscription(
             String, self.config['memo_topic'], self.memo_callback, 10)
+        self.autonomy_level_sub = self.create_subscription(
+            VehicleUint8,
+            self.config.get('autonomy_level_topic', '/system/operational_design_domain/autonomy_level'),
+            self.autonomy_level_callback, 10)
         self.rotate_bag()
         self.timer = self.create_timer(self.config['interval_sec'], self.rotate_bag)
 
@@ -170,12 +183,44 @@ class TimedRosbagRecorder(Node):
         #else:
         #    self.get_logger().warn('Memo received but no current bag directory exists.')    
     
-    def memo_callback(self, msg: String):
+    def _record_memo(self, text: str):
+        """memo_callback と同じ流れ（記録フラグON＋メモ追記＋前バッグへの通知）。"""
         self.should_record = True
-        self.memo_concat(msg.data)
+        self.memo_concat(text)
         self.previous_memo_treat()
 
+    def autonomy_level_callback(self, msg: VehicleUint8):
+        level = msg.data
+        if level == 4 and not self.in_segment:
+            self.in_segment = True
+            self.rotate_skip_count = 0
+            self._record_memo('enter segment (lv4)')
+            self.get_logger().info(f'in_segment -> True (autonomy_level {level})')
+        elif level != 4 and self.in_segment:
+            self.in_segment = False
+            self._record_memo(f'leave segment (lv4->lv{level})')
+            self.get_logger().info(f'in_segment -> False (autonomy_level {level})')
+        self.prev_autonomy_level = level
+
+    def memo_callback(self, msg: String):
+        self._record_memo(msg.data)
+
     def rotate_bag(self):
+        # in_segment中は1本の長いバッグとして残したいのでローテーションをスキップ
+        if self.in_segment:
+            self.rotate_skip_count += 1
+            if self.rotate_skip_count >= ROTATE_SKIP_FAILSAFE_LIMIT:
+                self.get_logger().warn(
+                    f'rotate_bag skipped {self.rotate_skip_count} times; forcing leave segment')
+                self.in_segment = False
+                self.rotate_skip_count = 0
+                self._record_memo('leave segment(failsafe)')
+                # fall through してローテーション実行
+            else:
+                self.get_logger().info(
+                    f'rotate_bag skipped (in_segment), count={self.rotate_skip_count}')
+                return
+
         # 一度止める（前回の周期分）
         if self.recording:
             #stop_bagでcurrentのpathがNoneにされる前に保持する
@@ -186,8 +231,9 @@ class TimedRosbagRecorder(Node):
                 self.get_logger().info(f'Discarding unmarked bag: {self.current_bag_path}')
                 if self.prev_bag_path != None and not self.prev_should_record:
                     shutil.rmtree(os.path.dirname(self.prev_bag_path), ignore_errors=True)
-                    #videoの消去
-                    shutil.rmtree(os.path.dirname(self.prev_video_path), ignore_errors=True)
+                    #videoの消去(video_enabled=False時はprev_video_pathがNone)
+                    if self.prev_video_path:
+                        shutil.rmtree(os.path.dirname(self.prev_video_path), ignore_errors=True)
             else:
                 self.get_logger().info(f'Preserved bag: {self.current_bag_path}')
 
@@ -202,13 +248,16 @@ class TimedRosbagRecorder(Node):
 
     def start_bag(self):
         now = datetime.now()
+        self.bag_start_time = now  # journal退避用にbag開始時刻を保持
         dir_date = now.strftime('%y%m%d%H%M%S')
         dir_time = now.strftime('%m%d%H%M%S')
         full_dir = os.path.join(self.config['bag_output_dir'], dir_date, dir_time)
         print(full_dir)
         cmd = [
             'ros2', 'bag', 'record',
-            '-o', full_dir, '--no-discovery'
+            '-o', full_dir, '--no-discovery',
+            '--storage', 'mcap',  # sqlite3より書き込み負荷が軽い (2026-07-17)
+            '--max-cache-size', '268435456',  # 256MiB: フラッシュ頻度を下げてCPUバースト緩和
         ] + self.config['record_topics']
         print(cmd)
 
@@ -216,15 +265,18 @@ class TimedRosbagRecorder(Node):
         self.bag_process = subprocess.Popen(cmd)
 
         # ffmpeg コマンド
-        full_dir_video = os.path.join(self.config['bag_output_dir'],"video", dir_date, dir_time)
-        # 混ぜたいけどvideo.startにrosbag recordでのディレクトリ作成が間に合わない
-        os.makedirs(full_dir_video, exist_ok=True)
-        video_file = os.path.join(full_dir_video, 'screen_capture.mp4')        
-        print(video_file)
-        self.video.start(self.video_source, video_file)
+        if self.video_enabled:
+            full_dir_video = os.path.join(self.config['bag_output_dir'],"video", dir_date, dir_time)
+            # 混ぜたいけどvideo.startにrosbag recordでのディレクトリ作成が間に合わない
+            os.makedirs(full_dir_video, exist_ok=True)
+            video_file = os.path.join(full_dir_video, 'screen_capture.mp4')
+            print(video_file)
+            self.video.start(self.video_source, video_file)
+            self.current_video_path = full_dir_video
+        else:
+            self.current_video_path = None
 
         self.current_bag_path = full_dir
-        self.current_video_path = full_dir_video
         self.recording = True
 
     def stop_bag(self):
@@ -236,12 +288,33 @@ class TimedRosbagRecorder(Node):
         self.memo_treat()
         self.memo_phrase = ""
         # 動画停止
-        self.video.stop()
+        if self.video_enabled:
+            self.video.stop()
+
+        # 保存対象(マーク付き)のbagは、その区間のジャーナルもjournal_saveへ退避 (2026-07-14)
+        # この時点ではshould_recordが未リセットのため、rotate/Ctrl+C/shutdownの全経路で
+        # 「保存されるbagのときだけ」発火する
+        if self.should_record and self.current_bag_path:
+            self._save_journal_async(self.current_bag_path)
 
         self.recording = False
         self.current_bag_path = None
         self.current_video_path = None
 
+    def _save_journal_async(self, bag_path):
+        """bag記録区間の4台ぶんジャーナルを退避する(非同期・記録ループを妨げない)"""
+        start_time = getattr(self, 'bag_start_time', None)
+        if start_time is None:
+            return
+        try:
+            label = os.path.basename(os.path.dirname(bag_path))  # 例: 260714161431
+            subprocess.Popen(
+                ['/home/sit/journal_save/save_journal_window.sh',
+                 start_time.strftime('%Y-%m-%d %H:%M:%S'), label],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.get_logger().info(f'journal save started for bag: {label}')
+        except Exception as e:
+            self.get_logger().warn(f'journal save spawn failed: {e}')
 
     def shutdown(self):
         self.stop_bag()

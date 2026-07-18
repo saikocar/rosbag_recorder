@@ -34,6 +34,15 @@ record_topics:
   - /vehicle/status/velocity_status_cpt7
   - /vehicle/status/velocity_status_pwrpak7
   - /vehicle/status/velocity_status_vcan
+  - /vehicle/status/gear_status
+  - /can/actuation/select_gear
+  - /control/command/d1/actuation_cmd
+  - /control/command/d2/actuation_cmd
+  - /control/command/d3/actuation_cmd
+  - /control/command/d4/actuation_cmd
+  - /control/command/d5/actuation_cmd
+  - /control/command/d6/actuation_cmd
+  - /vehicle/status/steering_status
   - /system/operational_design_domain/autonomy_level
   - /system/operational_design_domain/lanelet_based_mode_switch
   - /gmps_position_validator/debug/lateral_error
@@ -44,31 +53,66 @@ record_topics:
   - /perception/object_recognition/detection/rois0
   - /sensing/camera/mobileye_eyeq2/can_tx
   - /perception/occupancy_grid_map/map
-  - /sensing/lidar/concatenated/pointcloud
+  #- /sensing/lidar/concatenated/pointcloud
   - /planning/mission_planning/route
   - /sensing/gnss/fixposition/fpa/odomstatus
   - /sensing/gnss/novatel_oem7/cpt7/rxstatus
   - /sensing/gnss/novatel_oem7/isa100/rxstatus
-  - /planning/scenario_planning/lane_driving/motion_planning/obstacle_avoidance_planner/debug/marker
-  - /planning/debug/objects_of_interest/avoidance_by_lane_change_left
-  - /planning/debug/objects_of_interest/avoidance_by_lane_change_right
-  - /planning/debug/objects_of_interest/avoidance_left
-  - /planning/debug/objects_of_interest/avoidance_right
-  - /planning/debug/objects_of_interest/dynamic_avoidance
-  - /planning/scenario_planning/lane_driving/behavior_planning/behavior_path_planner/info/avoidance
-  - /planning/scenario_planning/lane_driving/behavior_planning/behavior_velocity_planner/debug/intersection
-  - /control/trajectory_follower/controller_node_exe/debug/predicted_trajectory_in_frenet_coordinate
-  - /control/trajectory_follower/controller_node_exe/lateral/debug/processing_time_ms
-  - /control/trajectory_follower/controller_node_exe/longitudinal/debug/processing_time_ms
-  - /control/trajectory_follower/controller_node_exe/output/debug_marker
-  - /control/trajectory_follower/controller_node_exe/output/estimated_steer_offset
-  - /control/trajectory_follower/lateral/diagnostic
-  - /control/trajectory_follower/lateral/predicted_trajectory
-  - /control/trajectory_follower/longitudinal/diagnostic
-  - /control/trajectory_follower/longitudinal/slope_angle
-  - /control/trajectory_follower/longitudinal/stop_reason
+  #- /planning/scenario_planning/lane_driving/motion_planning/obstacle_avoidance_planner/debug/marker
+  #- /planning/debug/objects_of_interest/avoidance_by_lane_change_left
+  #- /planning/debug/objects_of_interest/avoidance_by_lane_change_right
+  #- /planning/debug/objects_of_interest/avoidance_left
+  #- /planning/debug/objects_of_interest/avoidance_right
+  #- /planning/debug/objects_of_interest/dynamic_avoidance
+  #- /planning/scenario_planning/lane_driving/behavior_planning/behavior_path_planner/info/avoidance
+  #- /planning/scenario_planning/lane_driving/behavior_planning/behavior_velocity_planner/debug/intersection
+  #- /control/trajectory_follower/controller_node_exe/debug/predicted_trajectory_in_frenet_coordinate
+  #- /control/trajectory_follower/controller_node_exe/lateral/debug/processing_time_ms
+  #- /control/trajectory_follower/controller_node_exe/longitudinal/debug/processing_time_ms
+  #- /control/trajectory_follower/controller_node_exe/output/debug_marker
+  #- /control/trajectory_follower/controller_node_exe/output/estimated_steer_offset
+  #- /control/trajectory_follower/lateral/diagnostic
+  #- /control/trajectory_follower/lateral/predicted_trajectory
+  #- /control/trajectory_follower/longitudinal/diagnostic
+  #- /control/trajectory_follower/longitudinal/slope_angle
+  #- /control/trajectory_follower/longitudinal/stop_reason
   - /modern_perception_container/radar_front_driver/map_filtered_modern_detected_objects
   - /perception/object_recognition/mobileye/modern_detected_objects
+  - /debug/drift_start
+  - /localization/ekf_aichi_localization/gmps_ready
+  - /localization/ekf_aichi_localization/gmps_sigma
+  - /localization/ekf_aichi_localization/gnss2_ready
+  - /localization/ekf_aichi_localization/gnss2_sigma
+  - /localization/ekf_aichi_localization/gnss2_theta_sigma
+  - /localization/ekf_aichi_localization/gnss3_ready
+  - /localization/ekf_aichi_localization/gnss3_sigma
+  - /localization/ekf_aichi_localization/gnss3_theta_sigma
+  - /localization/ekf_aichi_localization/gnss_ready
+  - /localization/ekf_aichi_localization/gnss_sigma
+  - /localization/ekf_aichi_localization/gnss_theta_sigma
+  #- /localization/ekf_aichi_localization/in_delta_name
+  #- /localization/ekf_aichi_localization/line_based_ready
+  - /localization/ekf_aichi_localization/ndt_ready
+  - /localization/ekf_aichi_localization/ndt_sigma
+  - /localization/ekf_aichi_localization/ndt_theta_sigma
+  - /localization/ekf_aichi_localization/sigma_template_str
+  - /localization/gmps_localization/gmps_pose_cov
+  - /localization/ekf_aichi_localization/ekf_aichi_pose_with_covariance  # yaw bias検証用 2026-07-17追加
+  - /localization/ekf_aichi_localization/debug_ekf_log  # yaw bias検証用 2026-07-17追加
+  #- /localization/line_based_localization
+  - /localization/pose_estimator/ndt_init
+  - /localization/pose_twist_fusion_filter/biased_pose_with_covariance
+  - /localization/pose_twist_fusion_filter/pose_with_covariance  # unbiased側 biasedとの比較用 2026-07-17追加
+  - /localization/pose_twist_fusion_filter/estimated_yaw_bias  # autoware ekfのyaw bias推定値 突き合わせ用 2026-07-17追加
+  - /localization/pose_twist_fusion_filter/twist_with_covariance
+  - /localization/twist_estimator/twist_with_covariance
+  - /map/vector_map
+  #- /parameter_events
+  - /sensing/gnss/fixposition/pose_with_covariance
+  - /sensing/gnss/novatel_oem7/cpt7/pose_with_covariance
+  - /sensing/gnss/novatel_oem7/isa100/pose_with_covariance
+  - /localization/constraints/lidar/line
+video_enabled: false  # ffmpegによる画面/カメラ録画のon/off (2026-07-14追加, 2026-07-17 typo修正: vdeo→video)
 control_topic: /autoware/state
 memo_topic: /record_memo_text
 mrm_topic: /system/fail_safe/mrm_state  # autonomy_level_based_emergency_handler output
