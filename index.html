@@ -2,33 +2,94 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>ROS2 Memo Publisher</title>
+  <title>ROSBAGメモ</title>
   <script src="https://cdn.jsdelivr.net/npm/roslib/build/roslib.min.js"></script>
-    <style>
-    .big-button {padding: 10px 20px;}
+  <style>
+    body {font-family: sans-serif; margin: 10px;}
+    .big-button {padding: 10px 20px; margin: 3px;}
+    fieldset {margin-bottom: 12px; border: 1px solid #999; border-radius: 6px;}
+    legend {font-weight: bold;}
+    #passengerCount {font-size: 28px; width: 90px; text-align: center;}
+    .passenger-button {padding: 10px 24px; font-size: 18px; margin: 3px;}
+    #passengerStatus {margin-left: 10px;}
   </style>
 </head>
 <body>
-  <h1>Send Memo to ROS2</h1>
-  <input type="text" id="memoInput" placeholder="Type your memo">
-  <button class="big-button" onclick="sendMemo()">Send with message</button>
-  <label><input type="checkbox" id="MassageSwitch" checked> 連打防止alert用スイッチ(チェック時に表示する)</label>
-  </br>
-  </br>
-  <button class="big-button" onclick="sendMemo_fixed('obstacle avoidance error')">obstacle avoidance error</button>
-  <button class="big-button" onclick="sendMemo_fixed('obstacle detection error')">obstacle detection error</button>
-  <button class="big-button" onclick="sendMemo_fixed('obstacle perception error')">obstacle perception error</button>
-  <button class="big-button" onclick="sendMemo_fixed('irregular brake')">irregular brake</button>
-  <button class="big-button" onclick="sendMemo_fixed('run out')">run out</button>
-  <button class="big-button" onclick="sendMemo_fixed('bad intersection')">bad intersection</button>
-  <button class="big-button" onclick="sendMemo_fixed('mrm')">mrm</button>
-  </br>
-  </br>
-  <button class="big-button" onclick="sendMemo_fixed('誤検知')">誤検知</button>
-  <button class="big-button" onclick="sendMemo_fixed('見落とし')">見落とし</button>
-  <button class="big-button" onclick="sendMemo_fixed('不必要な停車')">不必要な停車</button>
-  <button class="big-button" onclick="sendMemo_fixed('停車失敗')">停車失敗</button>
-  <button class="big-button" onclick="sendMemo_fixed('車両の方向誤り')">車両の方向誤り</button>
+  <h1>ROSBAGメモ</h1>
+
+  <fieldset>
+    <legend>自由入力</legend>
+    <input type="text" id="memoInput" placeholder="Type your memo">
+    <button class="big-button" onclick="sendMemo()">Send with message</button>
+    <label><input type="checkbox" id="MassageSwitch"> 連打防止alert用スイッチ(チェック時に表示する)</label>
+  </fieldset>
+
+  <fieldset>
+    <legend>発車失敗</legend>
+    <button class="big-button" onclick="sendMemo_fixed('発車失敗(対向車検知遅れ)')">対向車検知遅れ</button>
+    <button class="big-button" onclick="sendMemo_fixed('発車失敗(横断歩道の人に過敏反応)')">横断歩道の人に過敏反応</button>
+    <button class="big-button" onclick="sendMemo_fixed('発車失敗(対向車に過敏反応)')">対向車に過敏反応</button>
+    <button class="big-button" onclick="sendMemo_fixed('発車失敗(譲られた)')">譲られた</button>
+    <button class="big-button" onclick="sendMemo_fixed('発車失敗(その他)')">その他</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>不必要なブレーキ</legend>
+    <button class="big-button" onclick="sendMemo_fixed('不必要なブレーキ・停止(ODA)')">ODA</button>
+    <button class="big-button" onclick="sendMemo_fixed('不必要なブレーキ・停止(誤認識)')">誤認識</button>
+    <button class="big-button" onclick="sendMemo_fixed('不必要なブレーキ・停止(対向車に過敏反応)')">対向車に過敏反応</button>
+    <button class="big-button" onclick="sendMemo_fixed('不必要なブレーキ・停止(不明)')">不明</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>介入</legend>
+    <button class="big-button" onclick="sendMemo_fixed('介入(自転車よけ)')">自転車よけ</button>
+    <button class="big-button" onclick="sendMemo_fixed('介入(歩行者よけ)')">歩行者よけ</button>
+    <button class="big-button" onclick="sendMemo_fixed('介入(植栽よけ)')">植栽よけ</button>
+    <button class="big-button" onclick="sendMemo_fixed('介入(対向車はみ出し)')">対向車はみ出し</button>
+    <button class="big-button" onclick="sendMemo_fixed('介入(その他)')">その他</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>路駐よけ失敗</legend>
+    <button class="big-button" onclick="sendMemo_fixed('路駐よけ失敗(軽トラック検知遅れ)')">軽トラック検知遅れ</button>
+    <button class="big-button" onclick="sendMemo_fixed('路駐よけ失敗(対向車検知遅れ)')">対向車検知遅れ</button>
+    <button class="big-button" onclick="sendMemo_fixed('路駐よけ失敗(その他)')">その他</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>停車失敗</legend>
+    <button class="big-button" onclick="sendMemo_fixed('停車失敗(坂の下の車両検知遅れ)')">坂の下の車両検知遅れ</button>
+    <button class="big-button" onclick="sendMemo_fixed('停車失敗(横断歩道検知漏れ)')">横断歩道検知漏れ</button>
+    <button class="big-button" onclick="sendMemo_fixed('停車失敗(ブレーキ不良)')">ブレーキ不良</button>
+    <button class="big-button" onclick="sendMemo_fixed('停車失敗(その他)')">その他</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>MRM</legend>
+    <button class="big-button" onclick="sendMemo_fixed('mrm(PCの負荷過大)')">PCの負荷過大</button>
+    <button class="big-button" onclick="sendMemo_fixed('mrm(その他)')">その他</button>
+  </fieldset>
+
+  <h1>乗車人数記録</h1>
+
+  <fieldset>
+    <legend>乗車人数</legend>
+    <div>
+      <span id="passengerDate"></span>
+      <label><input type="radio" name="slot" value="am"> 午前便</label>
+      <label><input type="radio" name="slot" value="pm"> 午後便</label>
+      <span>(現在時刻から自動選択・変更可)</span>
+    </div>
+    <div style="margin-top: 8px;">
+      <button class="passenger-button" onclick="resetPassengers()">初期化</button>
+      <button class="passenger-button" onclick="changePassengers(1)">＋</button>
+      <input type="number" id="passengerCount" value="0" min="0" step="1">
+      <button class="passenger-button" onclick="changePassengers(-1)">－</button>
+      <button class="passenger-button" onclick="setPassengers()">set</button>
+      <span id="passengerStatus"></span>
+    </div>
+  </fieldset>
 
   <script>
     // サーバーのIPアドレスを自動取得
@@ -79,6 +140,62 @@
       console.log('Published message:', text);
       if(document.getElementById('MassageSwitch').checked){alert("Published message:" + text);}
     }
+
+    // ---- 乗車人数 ----
+    const countBox = document.getElementById('passengerCount');
+    const statusSpan = document.getElementById('passengerStatus');
+
+    function selectedSlot() {
+      return document.querySelector('input[name="slot"]:checked').value;
+    }
+
+    function resetPassengers() {
+      countBox.value = 0;
+      statusSpan.textContent = '';
+    }
+
+    function changePassengers(delta) {
+      countBox.value = Math.max(0, (parseInt(countBox.value) || 0) + delta);
+    }
+
+    async function setPassengers() {
+      const count = parseInt(countBox.value);
+      if (isNaN(count) || count < 0) {
+        statusSpan.textContent = '人数が不正です';
+        return;
+      }
+      try {
+        const res = await fetch('/set_passengers', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({count: count, slot: selectedSlot()})
+        });
+        const result = await res.json();
+        if (result.ok) {
+          statusSpan.textContent = `保存しました: ${result.date} ${result.slot === 'am' ? '午前便' : '午後便'} ${result.count}人`;
+        } else {
+          statusSpan.textContent = '保存失敗: ' + result.error;
+        }
+      } catch (e) {
+        statusSpan.textContent = '保存失敗: ' + e;
+      }
+    }
+
+    // 初期表示: 今日の日付・自動判定した便・保存済みの人数を取得
+    (async () => {
+      try {
+        const res = await fetch('/passengers_today');
+        const today = await res.json();
+        document.getElementById('passengerDate').textContent = today.date;
+        document.querySelector(`input[name="slot"][value="${today.slot}"]`).checked = true;
+        const saved = today[today.slot];
+        if (saved != null) countBox.value = saved;
+      } catch (e) {
+        document.getElementById('passengerDate').textContent = '(サーバー未対応: recorder_ui.sh を新版で起動してください)';
+        document.querySelector('input[name="slot"][value="am"]').checked = true;
+        console.error(e);
+      }
+    })();
   </script>
 </body>
 </html>

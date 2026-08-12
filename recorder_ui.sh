@@ -33,7 +33,7 @@ else
 fi
 
 # ==== Webサーバ起動（ポート8000） ====
-python3 -m http.server 8000 &
+python3 passenger_server.py &
 HTTP_PID=$!
 
 # ==== アクセスURL表示 ====
