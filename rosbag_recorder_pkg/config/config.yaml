@@ -78,6 +78,7 @@ record_topics:
   #- /control/trajectory_follower/longitudinal/stop_reason
   - /modern_perception_container/radar_front_driver/map_filtered_modern_detected_objects
   - /perception/object_recognition/mobileye/modern_detected_objects
+  - /perception/object_recognition/tracking/legacy_objects_raw
   - /debug/drift_start
   - /localization/ekf_aichi_localization/gmps_ready
   - /localization/ekf_aichi_localization/gmps_sigma
@@ -95,6 +96,7 @@ record_topics:
   - /localization/ekf_aichi_localization/ndt_ready
   - /localization/ekf_aichi_localization/ndt_sigma
   - /localization/ekf_aichi_localization/ndt_theta_sigma
+  - /localization/ekf_aichi_localization/overlaytext_localizer_contribution
   - /localization/ekf_aichi_localization/sigma_template_str
   - /localization/gmps_localization/gmps_pose_cov
   - /localization/ekf_aichi_localization/ekf_aichi_pose_with_covariance  # yaw bias検証用 2026-07-17追加
@@ -106,10 +108,17 @@ record_topics:
   - /localization/pose_twist_fusion_filter/estimated_yaw_bias  # autoware ekfのyaw bias推定値 突き合わせ用 2026-07-17追加
   - /localization/pose_twist_fusion_filter/twist_with_covariance
   - /localization/twist_estimator/twist_with_covariance
+  - /localization/ekf_aichi_localization/healthcheck/lidar_ndt/status
+  - /localization/ekf_aichi_localization/healthcheck/gnss_isa100/status
+  - /localization/ekf_aichi_localization/healthcheck/gnss_spancpt7/status
+  - /localization/ekf_aichi_localization/healthcheck/aichi_gmps/status
+  - /localization/ekf_aichi_localization/healthcheck/gnss_fixposition/status
   - /map/vector_map
   #- /parameter_events
   - /sensing/gnss/fixposition/pose_with_covariance
+  - /sensing/gnss/novatel_oem7/cpt7/ins_status
   - /sensing/gnss/novatel_oem7/cpt7/pose_with_covariance
+  - /sensing/gnss/novatel_oem7/cpt7/position_type
   - /sensing/gnss/novatel_oem7/isa100/pose_with_covariance
   - /localization/constraints/lidar/line
 video_enabled: false  # ffmpegによる画面/カメラ録画のon/off (2026-07-14追加, 2026-07-17 typo修正: vdeo→video)
@@ -118,7 +127,7 @@ memo_topic: /record_memo_text
 mrm_topic: /system/fail_safe/mrm_state  # autonomy_level_based_emergency_handler output
 hazard_topic: /system/emergency/hazard_status  # HazardStatus (SPF diagnostics for MRM cause)
 interval_sec: 60  # 秒
-bag_output_dir: /media/sit/e14ce0d0-9e97-4947-a74d-76b62cd49319/rosbag_save/  # ベースディレクトリ
+bag_output_dir: /media/sit/ROSBAG/rosbag_save/  # ベースディレクトリ
 remote_log_hosts:  # MRM時にdmesg/journalctlを取得するリモートホスト（ssh接続可能であること）
   - sit@roscube
   - sit@ava2
