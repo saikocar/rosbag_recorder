@@ -16,6 +16,7 @@ from tier4_system_msgs.msg import HazardStatus
 from vehicle_std_msgs.msg import Uint8 as VehicleUint8
 
 from .video_recorder import VideoRecorder,RawVideoSource
+from .version_info import get_version
 
 # in_segment中に rotate_bag をスキップし続ける上限。超過時は failsafe で強制離脱。
 ROTATE_SKIP_FAILSAFE_LIMIT = 30
@@ -23,6 +24,8 @@ ROTATE_SKIP_FAILSAFE_LIMIT = 30
 class TimedRosbagRecorder(Node):
     def __init__(self, config_path):
         super().__init__('timed_rosbag_recorder')
+        self.version = get_version()
+        self.get_logger().info(f'version {self.version}')
         self.load_config(config_path)
 
         self.recording = False
@@ -170,7 +173,7 @@ class TimedRosbagRecorder(Node):
         if self.current_bag_path:
             memo_path = os.path.join(self.current_bag_path, 'memo.txt')
             with open(memo_path, 'a') as f:
-                f.write(f"{self.memo_phrase}")
+                f.write(f"[recorder version {self.version}]\n{self.memo_phrase}")
             #self.get_logger().info(f'Memo saved: {msg}')
         #else:
         #    self.get_logger().warn('Memo received but no current bag directory exists.')    
