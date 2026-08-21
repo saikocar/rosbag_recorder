@@ -7,15 +7,18 @@ from functools import lru_cache
 @lru_cache(maxsize=1)
 def get_version() -> str:
     here = os.path.dirname(os.path.realpath(__file__))
-    try:
-        out = subprocess.run(['git', '-C', here, 'rev-parse', '--short', 'HEAD'],
-                             capture_output=True, text=True, timeout=2)
-        if out.returncode == 0 and out.stdout.strip():
-            dirty = subprocess.run(['git', '-C', here, 'status', '--porcelain', '--', '.'],
-                                   capture_output=True, text=True, timeout=2).stdout.strip()
-            return out.stdout.strip() + ('+dirty' if dirty else '')
-    except Exception:  # noqa: BLE001
-        pass
+    d = here
+    for _ in range(7):  # ããã±ã¼ã¸ç´ä¸ã«ç©ºã® .git ãå±ããã¨ãããã®ã§è¦ªã¸ããã®ã¼ã
+        try:
+            out = subprocess.run(['git', '-C', d, 'rev-parse', '--short', 'HEAD'],
+                                 capture_output=True, text=True, timeout=2)
+            if out.returncode == 0 and out.stdout.strip():
+                dirty = subprocess.run(['git', '-C', d, 'status', '--porcelain', '--', here],
+                                       capture_output=True, text=True, timeout=2).stdout.strip()
+                return out.stdout.strip() + ('+dirty' if dirty else '')
+        except Exception:  # noqa: BLE001
+            break
+        d = os.path.dirname(d)
     vf = os.path.join(here, 'VERSION')
     if os.path.isfile(vf):
         return open(vf).read().strip() or 'unknown'
