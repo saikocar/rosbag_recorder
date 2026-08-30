@@ -50,6 +50,10 @@ record_topics:
   - /sensing/camera/roscube/front_wide/image_rect
   - /sensing/camera/roscube/front_wide/camera_info
   - /sensing/imu/imu_data
+  # IMU 冗長化(imu_arbiter_poc)の検証用。2系統の生データ。
+  # imu_data は corrector 後の1本のみで、アービタの入力が bag に残らないため追加(2026-08-30)
+  - /sensing/imu/imu_raw          # ISA-100C (PwrPak7)
+  - /sensing/imu/imu_raw_cpt7     # HG4930 (CPT7)
   - /perception/object_recognition/detection/rois0
   - /sensing/camera/mobileye_eyeq2/can_tx
   - /perception/occupancy_grid_map/map
