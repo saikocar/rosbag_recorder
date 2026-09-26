@@ -129,6 +129,11 @@ record_topics:
   - /sensing/gnss/novatel_oem7/cpt7/pose_with_covariance
   - /sensing/gnss/novatel_oem7/cpt7/position_type
   - /sensing/gnss/novatel_oem7/isa100/pose_with_covariance
+  # PwrPak7(isa100)の INS 状態と測位の種類。ekf_aichi health_check の gnss_ready 判定の材料(2026-09-26 追加)
+  #   cpt7 側は 2026-08-11 に追加済みだったが isa100 側が無く、gnss_ready が
+  #   "ins status good time out" のとき INS がどの状態だったかを bag から確かめられなかった
+  - /sensing/gnss/novatel_oem7/isa100/ins_status     # 1 Hz
+  - /sensing/gnss/novatel_oem7/isa100/position_type  # 10 Hz
   - /localization/constraints/lidar/line
 video_enabled: false  # ffmpegによる画面/カメラ録画のon/off (2026-07-14追加, 2026-07-17 typo修正: vdeo→video)
 control_topic: /autoware/state
