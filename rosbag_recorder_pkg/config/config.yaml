@@ -18,6 +18,7 @@ record_topics:
   - /planning/scenario_planning/lane_driving/motion_planning/obstacle_cruise_planner/debug/slow_down/virtual_wall
   - /planning/scenario_planning/lane_driving/motion_planning/obstacle_cruise_planner/virtual_wall
   - /perception/traffic_light_recognition/traffic_signals
+  - /perception/traffic_light_recognition/yolo_detections  # YOLO の検出(枠の座標・受信時刻・ID、JSON)。1 パケット 1 通。nshinjuku-traffic-signal-ergamio 35f388e 以降のブリッジが出す(2026-09-26)
   - /bevfusion_objects_modern
   - /bevfusion_objects_modern_post
   - /centerpoint_objects_modern
@@ -49,6 +50,7 @@ record_topics:
   - /sensing/camera/mobileye/can_tx
   - /sensing/camera/roscube/front_wide/image_rect/compressed  # JPEG。非圧縮の image_rect(約 18 Hz、1 分あたり推定 2 GB 余り)から差し替え(2026-09-26)。路面や前方を目で確かめる用途
   - /sensing/camera/roscube/front_wide/camera_info
+  - /sensing/camera/roscube/front_tele/image_raw/compressed  # 望遠(YOLO が推論している映像、960x768 に縮小済みの JPEG)。信号の誤検出を確かめる用(2026-09-26)
   - /sensing/imu/imu_data
   # IMU 冗長化(imu_arbiter_poc)の検証用。2系統の生データ。
   # imu_data は corrector 後の1本のみで、アービタの入力が bag に残らないため追加(2026-08-30)
