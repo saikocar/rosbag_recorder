@@ -117,6 +117,7 @@ record_topics:
   - /localization/pose_estimator/is_converged  # 雨の日の NDT 生データ(a-5 の余裕確認)2026-09-23追加
   - /localization/pose_estimator/initial_to_result_relative_pose  # 雨の日の NDT 生データ(a-5 の余裕確認)2026-09-23追加
   - /sensing/lidar/front_top/pointcloud_before_sync  # OS2(front_top)の生点群 = NDT の入力(本人 2026-09-23。約 1.5〜2 GB/分。空きを見て、要らない日はコメントアウト)
+  - /sensing/lidar/output_stamp  # concatenate に入った 3 台(front_left, front_right, front_top の順)の header 時刻、String 10 Hz。PTP・時刻のずれを 3 台で見る(本人 2026-09-27)
   - /localization/util/downsample/pointcloud  # NDT に入る直前の間引き点群(小さい。生点群を外す日もこれは残す)
   - /localization/pose_twist_fusion_filter/biased_pose_with_covariance
   - /localization/pose_twist_fusion_filter/pose_with_covariance  # unbiased側 biasedとの比較用 2026-07-17追加
