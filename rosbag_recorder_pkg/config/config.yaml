@@ -47,7 +47,7 @@ record_topics:
   - /system/operational_design_domain/lanelet_based_mode_switch
   - /gmps_position_validator/debug/lateral_error
   - /sensing/camera/mobileye/can_tx
-  - /sensing/camera/roscube/front_wide/image_rect
+  - /sensing/camera/roscube/front_wide/image_rect/compressed  # JPEG。非圧縮の image_rect(約 18 Hz、1 分あたり推定 2 GB 余り)から差し替え(2026-09-26)。路面や前方を目で確かめる用途
   - /sensing/camera/roscube/front_wide/camera_info
   - /sensing/imu/imu_data
   # IMU 冗長化(imu_arbiter_poc)の検証用。2系統の生データ。
