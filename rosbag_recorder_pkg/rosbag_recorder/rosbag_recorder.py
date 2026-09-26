@@ -45,6 +45,15 @@ class TimedRosbagRecorder(Node):
         self.memo_phrase = ""
         # config.yamlのvideo_enabled: falseでffmpegによる動画録画を無効化できる(既定: 有効)
         self.video_enabled = bool(self.config.get('video_enabled', True))
+        # 消去なしモード(2026-09-23 追加): 合図(自動運転・MRM・メモ)が無い bag も消さずに全部残す。
+        #   config.yaml の keep_all_bags: true、または keep_all_flag_file(既定 /tmp/rosbag_recorder_keep_all)が存在する間だけ有効。
+        #   手動走行の全区間記録(事故対策の段階 3)など、合図の無い走行を丸ごと残したいときに使う。
+        #   フラグファイルは周期ごとに見るので、走行中に touch / rm で切り替えられる。
+        self.keep_all_bags = bool(self.config.get('keep_all_bags', False))
+        self.keep_all_flag_file = os.path.expanduser(
+            str(self.config.get('keep_all_flag_file', '/tmp/rosbag_recorder_keep_all')))
+        self.get_logger().info(
+            f'keep_all_bags={self.keep_all_bags} keep_all_flag_file={self.keep_all_flag_file}')
         self.video = VideoRecorder()
         self.video_source=RawVideoSource('/dev/v4l/by-id/usb-MACROSILICON_C7_USB3.0_Video_41475953-video-index0', 'v4l2', 'mjpeg', (1920, 1080), 30),
 
@@ -208,7 +217,15 @@ class TimedRosbagRecorder(Node):
     def memo_callback(self, msg: String):
         self._record_memo(msg.data)
 
+    def _keep_all_active(self) -> bool:
+        """消去なしモードが有効か(config の keep_all_bags、またはフラグファイルの存在)。"""
+        return self.keep_all_bags or os.path.exists(self.keep_all_flag_file)
+
     def rotate_bag(self):
+        # 消去なしモード: この周期の bag を合図の有無によらず残す(memo にも残す)
+        if self.recording and self._keep_all_active() and not self.should_record:
+            self.should_record = True
+            self.memo_concat('keep_all mode (bag preserved without trigger)')
         # in_segment中は1本の長いバッグとして残したいのでローテーションをスキップ
         if self.in_segment:
             self.rotate_skip_count += 1

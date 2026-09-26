@@ -58,6 +58,14 @@ class TimedRosbagRecorder(Node):
         self.shutting_down = False
         self.start_fail_count = 0
         self.current_bag_path = None  # 窓の確定処理中のみ実ディレクトリを指す
+        # 消去なしモード(2026-09-23 追加、rosbag_recorder.py と同じ): 合図(自動運転・MRM・メモ)が無い bag も消さずに全部残す。
+        #   config.yaml の keep_all_bags: true、または keep_all_flag_file(既定 /tmp/rosbag_recorder_keep_all)が存在する間だけ有効。
+        #   フラグファイルは窓ごとに見るので、走行中に touch / rm で切り替えられる。
+        self.keep_all_bags = bool(self.config.get('keep_all_bags', False))
+        self.keep_all_flag_file = os.path.expanduser(
+            str(self.config.get('keep_all_flag_file', '/tmp/rosbag_recorder_keep_all')))
+        self.get_logger().info(
+            f'keep_all_bags={self.keep_all_bags} keep_all_flag_file={self.keep_all_flag_file}')
         self.prev_bag_path = None
         self.current_video_path = None
         self.prev_video_path = None
@@ -261,6 +269,11 @@ class TimedRosbagRecorder(Node):
         else:
             self.get_logger().warn(f'closed bag file not found: {closed_file}')
 
+        # 消去なしモード: この窓を合図の有無によらず残す(memo にも残す。下の memo_treat で書かれる)
+        if self._keep_all_active() and not self.should_record:
+            self.should_record = True
+            self.memo_concat('keep_all mode (bag preserved without trigger)')
+
         # memo は旧実装の stop_bag と同じく窓の締めで書く
         self.current_bag_path = dest
         self.memo_treat()
@@ -306,6 +319,10 @@ class TimedRosbagRecorder(Node):
 
         self.start_video_window(now)
         return dest
+
+    def _keep_all_active(self) -> bool:
+        """消去なしモードが有効か(config の keep_all_bags、またはフラグファイルの存在)。"""
+        return self.keep_all_bags or os.path.exists(self.keep_all_flag_file)
 
     def _reindex_async(self, bag_dir):
         """従来レイアウト互換の metadata.yaml を低優先度で生成 (ros2 bag play <dir> 用)"""

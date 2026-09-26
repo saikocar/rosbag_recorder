@@ -50,10 +50,6 @@ record_topics:
   - /sensing/camera/roscube/front_wide/image_rect
   - /sensing/camera/roscube/front_wide/camera_info
   - /sensing/imu/imu_data
-  # IMU 冗長化(imu_arbiter_poc)の検証用。2系統の生データ。
-  # imu_data は corrector 後の1本のみで、アービタの入力が bag に残らないため追加(2026-08-30)
-  - /sensing/imu/imu_raw          # ISA-100C (PwrPak7)
-  - /sensing/imu/imu_raw_cpt7     # HG4930 (CPT7)
   - /perception/object_recognition/detection/rois0
   - /sensing/camera/mobileye_eyeq2/can_tx
   - /perception/occupancy_grid_map/map
@@ -107,6 +103,15 @@ record_topics:
   - /localization/ekf_aichi_localization/debug_ekf_log  # yaw bias検証用 2026-07-17追加
   #- /localization/line_based_localization
   - /localization/pose_estimator/ndt_init
+  - /localization/pose_estimator/pose_with_covariance  # 雨の日の NDT 生データ(a-5 の余裕確認)2026-09-23追加
+  - /localization/pose_estimator/nearest_voxel_transformation_likelihood  # 雨の日の NDT 生データ(a-5 の余裕確認)2026-09-23追加
+  - /localization/pose_estimator/transform_probability  # 雨の日の NDT 生データ(a-5 の余裕確認)2026-09-23追加
+  - /localization/pose_estimator/iteration_num  # 雨の日の NDT 生データ(a-5 の余裕確認)2026-09-23追加
+  - /localization/pose_estimator/exe_time_ms  # 雨の日の NDT 生データ(a-5 の余裕確認)2026-09-23追加
+  - /localization/pose_estimator/is_converged  # 雨の日の NDT 生データ(a-5 の余裕確認)2026-09-23追加
+  - /localization/pose_estimator/initial_to_result_relative_pose  # 雨の日の NDT 生データ(a-5 の余裕確認)2026-09-23追加
+  - /sensing/lidar/front_top/pointcloud_before_sync  # OS2(front_top)の生点群 = NDT の入力(本人 2026-09-23。約 1.5〜2 GB/分。空きを見て、要らない日はコメントアウト)
+  - /localization/util/downsample/pointcloud  # NDT に入る直前の間引き点群(小さい。生点群を外す日もこれは残す)
   - /localization/pose_twist_fusion_filter/biased_pose_with_covariance
   - /localization/pose_twist_fusion_filter/pose_with_covariance  # unbiased側 biasedとの比較用 2026-07-17追加
   - /localization/pose_twist_fusion_filter/estimated_yaw_bias  # autoware ekfのyaw bias推定値 突き合わせ用 2026-07-17追加
@@ -131,6 +136,8 @@ memo_topic: /record_memo_text
 mrm_topic: /system/fail_safe/mrm_state  # autonomy_level_based_emergency_handler output
 hazard_topic: /system/emergency/hazard_status  # HazardStatus (SPF diagnostics for MRM cause)
 interval_sec: 60  # 秒
+keep_all_bags: false  # true にすると合図(自動運転・MRM・メモ)が無い bag も消さず全部残す(2026-09-23 追加)。走行中に切り替えるなら下のフラグファイルを touch / rm
+keep_all_flag_file: /tmp/rosbag_recorder_keep_all  # このファイルがある間は keep_all_bags と同じ(周期ごとに確認)
 bag_output_dir: /media/sit/ROSBAG/rosbag_save/  # ベースディレクトリ
 remote_log_hosts:  # MRM時にdmesg/journalctlを取得するリモートホスト（ssh接続可能であること）
   - sit@roscube
