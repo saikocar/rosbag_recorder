@@ -136,7 +136,6 @@ record_topics:
   - /sensing/gnss/novatel_oem7/cpt7/pose_with_covariance
   - /sensing/gnss/novatel_oem7/cpt7/position_type
   - /sensing/gnss/novatel_oem7/isa100/pose_with_covariance
-  - /sensing/gnss/pose_with_covariance  # pose_initializer の初期値・ekf_aichi の GNSS 入力。9/26 16:29 の NDT 初期化(向き 128° 違いで成功)の初期値を確かめられなかった(本人 2026-09-27)
   # PwrPak7(isa100)の INS 状態と測位の種類。ekf_aichi health_check の gnss_ready 判定の材料(2026-09-26 追加)
   #   cpt7 側は 2026-08-11 に追加済みだったが isa100 側が無く、gnss_ready が
   #   "ins status good time out" のとき INS がどの状態だったかを bag から確かめられなかった
