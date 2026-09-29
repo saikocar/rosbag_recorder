@@ -150,7 +150,7 @@ control_topic: /autoware/state
 memo_topic: /record_memo_text
 mrm_topic: /system/fail_safe/mrm_state  # autonomy_level_based_emergency_handler output
 hazard_topic: /system/emergency/hazard_status  # HazardStatus (SPF diagnostics for MRM cause)
-interval_sec: 1800  # 秒。1 ファイル 30 分(本人 2026-09-29、一時的。普段は 60)。LiDAR 3 台を記録中は 1 ファイル 約 190 GB
+interval_sec: 300  # 秒。1 ファイル 5 分(本人 2026-09-29、一時的。普段は 60。同日の最初の走行は 1800)。LiDAR 3 台を記録中は 1 ファイル 約 28 GB
 keep_all_bags: true  # (2026-09-29 本人指示で一時的に true。普段は false) true にすると合図(自動運転・MRM・メモ)が無い bag も消さず全部残す(2026-09-23 追加)。走行中に切り替えるなら下のフラグファイルを touch / rm
 keep_all_flag_file: /tmp/rosbag_recorder_keep_all  # このファイルがある間は keep_all_bags と同じ(周期ごとに確認)
 bag_output_dir: /media/sit/ROSBAG/rosbag_save/  # ベースディレクトリ
