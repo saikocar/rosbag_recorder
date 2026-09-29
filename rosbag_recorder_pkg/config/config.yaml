@@ -117,6 +117,8 @@ record_topics:
   - /localization/pose_estimator/is_converged  # 雨の日の NDT 生データ(a-5 の余裕確認)2026-09-23追加
   - /localization/pose_estimator/initial_to_result_relative_pose  # 雨の日の NDT 生データ(a-5 の余裕確認)2026-09-23追加
   - /sensing/lidar/front_top/pointcloud_before_sync  # OS2(front_top)の生点群 = NDT の入力(本人 2026-09-23。約 1.5〜2 GB/分。空きを見て、要らない日はコメントアウト)
+  - /sensing/lidar/front_left/pointcloud_before_sync   # 左の生点群(歪み補正・自車除去の後、結合の前)。型変換の時刻順の並べ替えを入れた前後の比較用(本人 2026-09-29。1 台 約 2 GB/分。要らなくなったらコメントアウト)
+  - /sensing/lidar/front_right/pointcloud_before_sync  # 右の生点群(同上)
   - /sensing/lidar/output_stamp  # concatenate に入った 3 台(front_left, front_right, front_top の順)の header 時刻、String 10 Hz。PTP・時刻のずれを 3 台で見る(本人 2026-09-27)
   - /localization/util/downsample/pointcloud  # NDT に入る直前の間引き点群(小さい。生点群を外す日もこれは残す)
   - /localization/pose_twist_fusion_filter/biased_pose_with_covariance
@@ -147,8 +149,8 @@ control_topic: /autoware/state
 memo_topic: /record_memo_text
 mrm_topic: /system/fail_safe/mrm_state  # autonomy_level_based_emergency_handler output
 hazard_topic: /system/emergency/hazard_status  # HazardStatus (SPF diagnostics for MRM cause)
-interval_sec: 60  # 秒
-keep_all_bags: false  # true にすると合図(自動運転・MRM・メモ)が無い bag も消さず全部残す(2026-09-23 追加)。走行中に切り替えるなら下のフラグファイルを touch / rm
+interval_sec: 1800  # 秒。1 ファイル 30 分(本人 2026-09-29、一時的。普段は 60)。LiDAR 3 台を記録中は 1 ファイル 約 190 GB
+keep_all_bags: true  # (2026-09-29 本人指示で一時的に true。普段は false) true にすると合図(自動運転・MRM・メモ)が無い bag も消さず全部残す(2026-09-23 追加)。走行中に切り替えるなら下のフラグファイルを touch / rm
 keep_all_flag_file: /tmp/rosbag_recorder_keep_all  # このファイルがある間は keep_all_bags と同じ(周期ごとに確認)
 bag_output_dir: /media/sit/ROSBAG/rosbag_save/  # ベースディレクトリ
 remote_log_hosts:  # MRM時にdmesg/journalctlを取得するリモートホスト（ssh接続可能であること）
