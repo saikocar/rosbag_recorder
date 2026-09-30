@@ -96,6 +96,7 @@ record_topics:
   - /localization/ekf_aichi_localization/gnss_ready
   - /localization/ekf_aichi_localization/gnss_sigma
   - /localization/ekf_aichi_localization/ndt_gnss_check_log  # a-3 の周期ログ(2026-09-25 追加。9/24 は記録されておらず a-3 の判定を数えられなかった)
+  - /localization/ekf_aichi_localization/rate_limit_log  # 観測の補正の秒速の上限(2026-09-30 搭載 A)の周期ログ: 周期ごとの補正量(前後・左右・向き、上限をかける前/後)と上限に当たった軸。50 Hz × 15 double、小さい(本人 2026-09-30)
   - /localization/ekf_aichi_localization/gnss_theta_sigma
   #- /localization/ekf_aichi_localization/in_delta_name
   #- /localization/ekf_aichi_localization/line_based_ready
