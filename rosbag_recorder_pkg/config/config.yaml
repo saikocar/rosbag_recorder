@@ -1,6 +1,8 @@
 record_topics:
   - /api/planning/velocity_factors
   - /diagnostics
+  - /audio/alert   # 警告音声(ava1 の alert_mumble_bot。s16le 16 kHz mono、鳴っている間だけ。2026-10-06)
+  - /audio/mumble  # 運転士・オペレータ・遠隔の会話(Mumble。話者は layout.dim[0].label。同上)
   - /control/command/actuation_cmd
   - /control/command/control_cmd
   - /can/pedal/can501
