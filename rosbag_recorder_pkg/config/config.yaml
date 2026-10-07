@@ -3,6 +3,7 @@ record_topics:
   - /diagnostics
   - /audio/alert   # 警告音声(ava1 の alert_mumble_bot。s16le 16 kHz mono、鳴っている間だけ。2026-10-06)
   - /audio/mumble  # 運転士・オペレータ・遠隔の会話(Mumble。話者は layout.dim[0].label。同上)
+  - /audio/transcript  # 会話・警告音声の文字起こし(ava1 の audio_transcriber。1 発話 1 行。bag フォルダの dialog.txt にも書く。2026-10-07)
   - /control/command/actuation_cmd
   - /control/command/control_cmd
   - /can/pedal/can501
@@ -151,6 +152,7 @@ record_topics:
 video_enabled: false  # ffmpegによる画面/カメラ録画のon/off (2026-07-14追加, 2026-07-17 typo修正: vdeo→video)
 control_topic: /autoware/state
 memo_topic: /record_memo_text
+transcript_topic: /audio/transcript  # 文字起こしの行を受けて、窓の締めに <bag>/dialog.txt へ書く(2026-10-07)
 mrm_topic: /system/fail_safe/mrm_state  # autonomy_level_based_emergency_handler output
 hazard_topic: /system/emergency/hazard_status  # HazardStatus (SPF diagnostics for MRM cause)
 interval_sec: 300  # 秒。1 ファイル 5 分(本人 2026-09-29、一時的。普段は 60。同日の最初の走行は 1800)。LiDAR 3 台を記録中は 1 ファイル 約 28 GB

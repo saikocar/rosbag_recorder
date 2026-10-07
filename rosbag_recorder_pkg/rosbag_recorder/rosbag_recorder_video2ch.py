@@ -84,6 +84,10 @@ class TimedRosbagRecorder(Node):
             AutowareState, self.config['control_topic'], self.control_callback, 10)
         self.memo_sub = self.create_subscription(
             String, self.config['memo_topic'], self.memo_callback, 10)
+        # 会話・警告音声の文字起こし(ava1 の audio_transcriber、1 発話 1 行)。窓の締めで dialog.txt に書く(2026-10-07)
+        self.dialog_lines = []
+        self.transcript_sub = self.create_subscription(
+            String, self.config.get('transcript_topic', '/audio/transcript'), self.transcript_callback, 100)
         self.lanelet_info_sub = self.create_subscription(
             OverlayText,
             self.config.get('lanelet_info_topic', '/map/lanelet_param/current_lanelet_info_text'),
@@ -155,6 +159,23 @@ class TimedRosbagRecorder(Node):
 
     def memo_callback(self, msg: String):
         self._record_memo(msg.data)
+
+    def transcript_callback(self, msg: String):
+        # 会話は記録の合図にしない(should_record は触らない)。合図の無い bag が消えるときは dialog.txt も一緒に消える。
+        # ava1 側の控え(~/audio_transcriber/log/YYYY-MM-DD.txt)は残る
+        self.dialog_lines.append(msg.data.rstrip('\n') + '\n')
+
+    def dialog_treat(self, bag_dir):
+        """窓の間に届いた文字起こしの行を <bag_dir>/dialog.txt に書く(memo.txt と同じく窓の締めで)。
+        行頭の時刻は発話の始まりなので、窓の境目をまたいだ発話は次の窓の dialog.txt に入ることがある。"""
+        if not self.dialog_lines:
+            return
+        lines, self.dialog_lines = self.dialog_lines, []
+        try:
+            with open(os.path.join(bag_dir, 'dialog.txt'), 'a') as f:
+                f.writelines(lines)
+        except OSError as e:
+            self.get_logger().warn(f'dialog.txt write failed ({bag_dir}): {e}')
 
     # ---- 常駐recorder管理 -------------------------------------------------
 
@@ -279,6 +300,7 @@ class TimedRosbagRecorder(Node):
         self.memo_treat()
         self.memo_phrase = ""
         self.current_bag_path = None
+        self.dialog_treat(dest)
 
         # 動画は窓ごとに停止し、(最終窓以外は)次の窓を開始する
         current_video_path = self.current_video_path
