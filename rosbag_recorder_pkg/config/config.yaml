@@ -4,6 +4,16 @@ record_topics:
   - /audio/alert   # 警告音声(ava1 の alert_mumble_bot。s16le 16 kHz mono、鳴っている間だけ。2026-10-06)
   - /audio/mumble  # 運転士・オペレータ・遠隔の会話(Mumble。話者は layout.dim[0].label。同上)
   - /audio/transcript  # 会話・警告音声の文字起こし(ava1 の audio_transcriber。1 発話 1 行。bag フォルダの dialog.txt にも書く。2026-10-07)
+  # CONTEC DIO の入力・出力の全ビットとウインカー(2026-10-10 追加。rosbag にウインカー・運転士の引き取りボタン・クラッチ断・MRM の表示灯が残っていなかった)
+  - /contec/dio_monitor/input      # 入力 30 項目(ergamio_cdio_interface の dio_monitor。変化時 + 1 秒ごと)
+  - /contec/dio_monitor/echo_back  # 出力 32 項目(いま出している値)
+  - /contec/dio_monitor/raw        # 生のバイト 8 個
+  - /contec/dio_monitor/change     # 変化 1 件 1 行(日本語の名前つき)
+  - /contec/input                  # contec_ros_bridge(診断の周期でだけ出る)
+  - /vehicle/status/turn_indicators_status
+  - /vehicle/status/hazard_lights_status
+  - /control/command/turn_indicators_cmd
+  - /control/command/hazard_lights_cmd
   - /control/command/actuation_cmd
   - /control/command/control_cmd
   - /can/pedal/can501
