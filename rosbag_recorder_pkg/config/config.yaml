@@ -14,6 +14,8 @@ record_topics:
   - /vehicle/status/hazard_lights_status
   - /control/command/turn_indicators_cmd
   - /control/command/hazard_lights_cmd
+  # 車両の CAN(J1939)の生のフレーム(2026-10-10 追加。それまではデコード後の値(/diagnostics、車速、ギヤ)しか残らず、デコードしていない PGN を後から取り出せなかった)
+  - /sensing/vcan/can_tx
   - /control/command/actuation_cmd
   - /control/command/control_cmd
   - /can/pedal/can501
