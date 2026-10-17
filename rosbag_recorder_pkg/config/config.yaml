@@ -105,6 +105,11 @@ record_topics:
   #- /control/trajectory_follower/longitudinal/slope_angle
   #- /control/trajectory_follower/longitudinal/stop_reason
   - /modern_perception_container/radar_front_driver/map_filtered_modern_detected_objects
+  # ARS548 の遠距離の経路の入出力(2026-10-17 追加、本人。遠距離の追跡の直しを実車の記録で確かめる・レーダーの取り付けの向きを測る)
+  #   レーダーのドライバの continental_detections は足さない(購読するとドライバが落ちた。2026-09-05)
+  - /modern_perception_container/radar_front_driver/modern_detected_objects  # adapter の出力 = 遠距離の経路と Mobileye と組む追跡の入力。base_link、20 Hz、約 40 kB/通(約 48 MB/分)
+  - /perception/object_recognition/detection/radar/far_objects   # 遠距離の経路(5 段)の出力 = 遠距離の追跡の入力。base_link、20 Hz(約 0.5〜2.3 MB/分)
+  - /perception/object_recognition/tracking/radar/far_objects    # 遠距離の追跡の出力 = decorative_tracker_merger の副入力。map、10 Hz(約 0.4〜2.9 MB/分)
   - /perception/object_recognition/mobileye/modern_detected_objects
   - /perception/object_recognition/tracking/legacy_objects_raw
   - /debug/drift_start
