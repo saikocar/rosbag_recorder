@@ -156,6 +156,7 @@ record_topics:
   - /sensing/vehicle_velocity_converter/twist_with_covariance  # 歪み補正と結合(concatenate)の時刻合わせに入る速度。記録した 3 台の点群から結合をやり直すときの入力(本人 2026-09-29。小さい)
   - /sensing/lidar/output_stamp  # concatenate に入った 3 台(front_left, front_right, front_top の順)の header 時刻、String 10 Hz。PTP・時刻のずれを 3 台で見る(本人 2026-09-27)
   - /localization/util/downsample/pointcloud  # NDT に入る直前の間引き点群(小さい。生点群を外す日もこれは残す)
+  - /control/aeb_input_switch/output/pointcloud  # 実機の AEB が読む点群(地面除去と PTv3 の絞りの後。切り替え役 aeb_input_switch の出力。nuvo の AEB_INPUT_FILTER=on のとき)。bag から AEB だけを設定を変えて流し直すため(本人 2026-10-19「足す」)。約 0.3〜0.5 GB/分(10/16・10/17 の影の実測)
   - /localization/pose_twist_fusion_filter/biased_pose_with_covariance
   - /localization/pose_twist_fusion_filter/pose_with_covariance  # unbiased側 biasedとの比較用 2026-07-17追加
   - /localization/pose_twist_fusion_filter/estimated_yaw_bias  # autoware ekfのyaw bias推定値 突き合わせ用 2026-07-17追加
