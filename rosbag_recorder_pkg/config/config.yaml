@@ -86,6 +86,11 @@ record_topics:
   - /sensing/gnss/fixposition/fpa/odomstatus
   - /sensing/gnss/novatel_oem7/cpt7/rxstatus
   - /sensing/gnss/novatel_oem7/isa100/rxstatus
+  # NovAtel 2 台の TIME ログ(1 Hz)。時計モデルの状態(VALID/CONVERGING/ITERATING/INVALID)と GPS 時刻とのずれ・その標準偏差。
+  #   受信機は LOG TIMEB ONTIME 1 を元から出しており、ドライバが time トピックに出している(受信機の設定は変えない)。
+  #   9/30〜10/3 に isa100 の RXSTATUS 22 ビット目(Clock model 無効)が 8 秒ずつ立った件の切り分け用(2026-10-19 追加)
+  - /sensing/gnss/novatel_oem7/cpt7/time
+  - /sensing/gnss/novatel_oem7/isa100/time
   #- /planning/scenario_planning/lane_driving/motion_planning/obstacle_avoidance_planner/debug/marker
   #- /planning/debug/objects_of_interest/avoidance_by_lane_change_left
   #- /planning/debug/objects_of_interest/avoidance_by_lane_change_right
