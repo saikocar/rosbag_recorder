@@ -134,6 +134,11 @@ record_topics:
   - /localization/ekf_aichi_localization/overlaytext_localizer_contribution
   - /localization/ekf_aichi_localization/sigma_template_str
   - /localization/gmps_localization/gmps_pose_cov
+  # 磁気マーカー(GMPS)の検知そのものと、gmps_localizer の対応付けの結果(2026-10-18 追加。本人「4足してください」= この 2 本を足す件)
+  #   gmps_pose_cov(対応付けた後の位置)だけでは、検知の抜け・取り違えを数えられず、記録から gmps_localizer を動かし直す再生もできなかった。
+  #   1〜3 月は記録していたが、3/31 の自動 snapshot(dfeddb24)で設定ファイルが別の版に置き換わって外れた(gmps_pose_cov など 3 本は 7/13 に戻ったが、この 2 本は戻っていなかった)
+  - /sensing/gmps/gmps_detect                 # gmps_msgs/GmpsDetect(gmps_driver)。マーカー 1 個に 1 通(2 m おき。最大 約 7 通/秒、1 通 約 40 バイト)
+  - /localization/gmps_localization/gmps_log  # gmps_msgs/GmpsLog(gmps_localizer)。検知 1 通に 1 通(対応付けたマーカー番号・予測位置との距離・多重検知とスキップの判定。1 通 約 70 バイト)
   - /localization/ekf_aichi_localization/ekf_aichi_pose_with_covariance  # yaw bias検証用 2026-07-17追加
   - /localization/ekf_aichi_localization/debug_ekf_log  # yaw bias検証用 2026-07-17追加
   #- /localization/line_based_localization
