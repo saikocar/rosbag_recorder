@@ -45,6 +45,10 @@ record_topics:
   - /perception/object_recognition/detection/podman_debug/legacy_bevfusion
   - /perception/object_recognition/detection/podman_debug/legacy_centerpoint
   - /perception/object_recognition/detection/podman_debug/legacy_transfusion
+  # Luminar の検出(ava1 の CenterPoint・BEVFusion)を rviz に出している箱(MarkerArray)。ava1 の橋渡し luminar_object_bridge.py が出す。
+  # 検出器は起動スクリプトの窓「AVA1 Luminar検出」を開いた日だけ動く。10/24 より前の箱は約 1.5 m 上にずれていた(橋渡しの不具合)
+  - /luminar_debug/objects_markers     # CenterPoint(rviz でマゼンタ)、base_link、約 12 Hz
+  - /luminar_debug/bevfusion_markers   # BEVFusion(rviz でオレンジ)、base_link、約 12 Hz
   - /vehicle/status/velocity_status
   - /vehicle/status/velocity_status_cpt7
   - /vehicle/status/velocity_status_pwrpak7
