@@ -7,7 +7,7 @@ python3 -m http.server 8000 の置き換え。静的ファイル配信に加え�
   GET  /passengers_today      -> {"date": "...", "am": n|null, "pm": n|null, "slot": "am"|"pm"}
   POST /set_passengers        <- {"count": n, "slot": "am"|"pm"}
 
-バス停ごとの乗車・降車(2026-10-26、運転手の画面の「扉」タブから):
+バス停ごとの乗車・降車(2026-10-26、運転手の画面の「扉・乗降」タブから):
   GET  /stop_passengers_today -> {"date": "...", "slot": "am"|"pm", "records": [...], "am": n|null, "pm": n|null}
   POST /set_stop_passengers   <- {"route": filename, "route_name": .., "stop_index": n, "stop_id": .., "stop_name": ..,
                                   "board": n, "alight": n, "slot": "am"|"pm"(省略可)}
