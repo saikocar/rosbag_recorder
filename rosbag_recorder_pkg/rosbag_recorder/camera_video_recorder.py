@@ -10,6 +10,7 @@ dw-notes `sensing/tools/camera_video/video_to_bag.py`。動画にすると画質
   分の切り目は header.stamp(撮像の時刻)で切る。mkv の中の時刻は、そのファイルの最初のコマからの差(ms 単位)。正しい時刻は .stamps.tsv。
 - 記録用のディスクが付いていない・目印のファイルが無い・空きが少ないときは書かない(ログに 1 回出す)。
 - bag の記録先に bag が残っていない時間帯の動画は、grace 秒たってから消す(Ouster の pcap と同じ。bag が 1 本も無いときは消さない)。
+- 分の切り目では、前のファイルを閉じきってから次を開く(符号化器を同時に開く数を台数までに抑える)。
 - 書く手(GStreamer)が詰まって、まだ書いていない量が上限を超えたら、そのコマを捨てて数える(1 分ごとにログ)。
 - SIGINT / SIGTERM で、書いているファイルを閉じてから抜ける。親(recorder)がいなくなったら同じように閉じて抜ける。
 """
@@ -218,7 +219,15 @@ class CameraVideoRecorder(Node):
         seg = self.cfg['segment'] * 10**9
         w = self.cur.get(cam)
         if w is not None and stamp // seg != w.t0 // seg:
-            self.close_cam(cam)
+            # 前のファイルを閉じきってから次を開く(最大 3 秒)。閉じきる前に開くと、切り目で符号化器が台数の 2 倍開き、
+            # 家庭向けの GPU では同時に開ける上限(8)を超えて「Failed to open encoder」になった(2026-11-10 garage の試験)
+            self.cur.pop(cam, None)
+            w.close()
+            t_end = time.time() + 3.0
+            while not w.poll(0.1):
+                if time.time() > t_end:
+                    self.closing.append(w)
+                    break
             w = None
         if w is None:
             d = os.path.join(self.cfg['dir'], datetime.datetime.fromtimestamp(stamp / 1e9).strftime('%y%m%d'))
