@@ -57,6 +57,8 @@ class TimedRosbagRecorder(Node):
         self.window_start = None
         self.shutting_down = False
         self.start_fail_count = 0
+        self.last_pcap_check = None
+        self.lidar_record_mode = self.lidar_mode()  # 起動時に 1 回だけ決める
         self.current_bag_path = None  # 窓の確定処理中のみ実ディレクトリを指す
         # 消去なしモード(2026-09-23 追加、rosbag_recorder.py と同じ): 合図(自動運転・MRM・メモ)が無い bag も消さずに全部残す。
         #   config.yaml の keep_all_bags: true、または keep_all_flag_file(既定 /tmp/rosbag_recorder_keep_all)が存在する間だけ有効。
@@ -207,15 +209,75 @@ class TimedRosbagRecorder(Node):
             '--storage', 'mcap',  # sqlite3より書き込み負荷が軽い (2026-07-17)
             '--max-cache-size', '268435456',  # 256MiB: フラッシュ頻度を下げてCPUバースト緩和
             '-d', str(self.config['interval_sec']),  # ネイティブ分割 (プロセスは常駐)
-        ] + self.config['record_topics']
+        ] + self.qos_override_args() + self.topics_for_lidar_mode()
         self.get_logger().info(f'Starting resident rosbag: {" ".join(cmd)}')
         self.bag_process = subprocess.Popen(cmd)
         self.recording = True
         self.start_video_window(now)
 
+    # ---- LiDAR の録り方(2026-11-10 追加) ------------------------------------
+    # config.yaml の lidar_record_mode で選ぶ。読むのは Autoware(このノード)の起動時だけ。
+    #   both       : bag に点群(lidar_pointcloud_topics)を入れ、pcap も録る(既定。キーが無いときもこれ)
+    #   pointcloud : bag に点群を入れる。pcap は録らない(ouster-pcap-recorder がこの設定ファイルを見て止まる)
+    #   pcap       : bag から lidar_pointcloud_topics を外し(pcap_mode_keep_pointcloud_topics に挙げたものは残す)、pcap で録る。
+    #                点群は pcap から作り直す(dw-notes sensing/tools/ouster_pcap_replay)。
+    LIDAR_MODES = ('both', 'pointcloud', 'pcap')
+
+    def lidar_mode(self):
+        mode = str(self.config.get('lidar_record_mode', 'both')).strip()
+        if mode not in self.LIDAR_MODES:
+            self.get_logger().error(
+                f'lidar_record_mode={mode!r} is not one of {self.LIDAR_MODES}; using both')
+            mode = 'both'
+        return mode
+
+    def topics_for_lidar_mode(self):
+        topics = list(self.config['record_topics'])
+        mode = self.lidar_record_mode
+        dropped = []
+        if mode == 'pcap':
+            clouds = set(self.config.get('lidar_pointcloud_topics') or [])
+            keep = set(self.config.get('pcap_mode_keep_pointcloud_topics') or [])
+            dropped = [t for t in topics if t in clouds and t not in keep]
+            topics = [t for t in topics if t not in dropped]
+        self.get_logger().info(
+            f'lidar_record_mode={mode} dropped_from_bag={dropped} '
+            f'kept_pointcloud={[t for t in topics if t in set(self.config.get("lidar_pointcloud_topics") or [])]}')
+        return topics
+
+    def qos_override_args(self):
+        """qos_overrides_path(空なら使わない)を ros2 bag record に渡す。ファイルが無ければ渡さずに録る。"""
+        path = os.path.expanduser(str(self.config.get('qos_overrides_path') or '').strip())
+        if not path:
+            return []
+        if not os.path.isfile(path):
+            self.get_logger().error(f'qos_overrides_path not found: {path}; recording without it')
+            return []
+        self.get_logger().info(f'qos_overrides_path={path}')
+        return ['--qos-profile-overrides-path', path]
+
+    def check_pcap_alive(self):
+        """pcap で録る設定なのに、pcap の新しいファイルが 3 分以上できていなければ、1 分ごとにエラーを出す。"""
+        if self.lidar_record_mode != 'pcap' or not self.recording:
+            return
+        now = datetime.now()
+        if self.last_pcap_check and (now - self.last_pcap_check).total_seconds() < 60:
+            return
+        self.last_pcap_check = now
+        day_dir = os.path.join(
+            str(self.config.get('pcap_dir', '/media/sit/ROSBAG/pcap_save/')), now.strftime('%y%m%d'))
+        newest = max((os.path.getmtime(p) for p in glob.glob(os.path.join(day_dir, 'ouster_*'))), default=None)
+        age = None if newest is None else now.timestamp() - newest
+        if age is None or age > 180:
+            self.get_logger().error(
+                f'lidar_record_mode=pcap but no fresh pcap in {day_dir} '
+                f'(newest {"none" if age is None else f"{age:.0f} s ago"}); '
+                'check: systemctl status ouster-pcap-recorder')
+
     def watchdog(self):
         if self.shutting_down:
             return
+        self.check_pcap_alive()
         if self.bag_process is None:
             # 起動失敗中(出力先未接続など)のリトライ
             self.start_recorder()

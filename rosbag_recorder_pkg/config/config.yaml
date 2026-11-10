@@ -198,6 +198,19 @@ hazard_topic: /system/emergency/hazard_status  # HazardStatus (SPF diagnostics f
 interval_sec: 300  # 秒。1 ファイル 5 分(本人 2026-09-29、一時的。普段は 60。同日の最初の走行は 1800)。LiDAR 3 台を記録中は 1 ファイル 約 28 GB
 keep_all_bags: true  # (2026-09-29 本人指示で一時的に true。普段は false) true にすると合図(自動運転・MRM・メモ)が無い bag も消さず全部残す(2026-09-23 追加)。走行中に切り替えるなら下のフラグファイルを touch / rm
 keep_all_flag_file: /tmp/rosbag_recorder_keep_all  # このファイルがある間は keep_all_bags と同じ(周期ごとに確認)
+# LiDAR の録り方(2026-11-10 追加)。変えたら Autoware を起こし直す(この recorder は起動時だけ読む。ouster-pcap-recorder は 1 分以内に従う)。
+#   install 側の写し(install/rosbag_recorder/share/rosbag_recorder/config/config.yaml)が使われるので、ここを直したら colcon build か写しの更新も。
+#   both       : bag に点群(下の lidar_pointcloud_topics)を入れ、pcap も録る(これまでどおり)
+#   pointcloud : bag に点群を入れる。pcap は録らない
+#   pcap       : bag から lidar_pointcloud_topics を外し(pcap_mode_keep_pointcloud_topics に挙げたものは残す)、pcap で録る。点群は garage2 で pcap から作り直す
+lidar_record_mode: both
+lidar_pointcloud_topics:  # pcap のとき bag から外す点群(record_topics にも挙げておく)
+  - /sensing/lidar/front_top/pointcloud_before_sync
+  - /sensing/lidar/front_left/pointcloud_before_sync
+  - /sensing/lidar/front_right/pointcloud_before_sync
+pcap_mode_keep_pointcloud_topics: []  # pcap のときも bag に残す点群(作り直しが実機と同じかを見張るために 1 台残すなら、ここに挙げる)
+pcap_dir: /media/sit/ROSBAG/pcap_save/  # pcap の置き場。pcap のとき、新しいファイルができているかを 1 分ごとに見て、無ければエラーを出す
+qos_overrides_path: ''  # ros2 bag record の受け口の指定(--qos-profile-overrides-path のファイル)。空なら使わない
 bag_output_dir: /media/sit/ROSBAG/rosbag_save/  # ベースディレクトリ
 remote_log_hosts:  # MRM時にdmesg/journalctlを取得するリモートホスト（ssh接続可能であること）
   - sit@roscube
