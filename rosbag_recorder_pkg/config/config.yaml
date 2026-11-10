@@ -216,7 +216,7 @@ qos_overrides_path: ''  # ros2 bag record の受け口の指定(--qos-profile-ov
 #   video : bag から camera_image_topics を外し、camera_video_recorder が GPU の H.265 で 1 分ごとの mkv に書く。camera_info は bag に残る。
 #           bag に戻すのは garage2 で dw-notes sensing/tools/camera_video/video_to_bag.py(画質は少し落ちる。元の JPEG とバイト列までは同じにならない)
 #   both  : bag にも入れ、mkv にも書く(戻した絵と元の JPEG を見比べるため)
-camera_record_mode: bag
+camera_record_mode: both  # 2026-11-10 実機に入れた。まず両方で残し、mkv から戻した絵と bag の JPEG の差を見る(本人「両方残して差を見てください」)
 camera_image_topics:  # video のとき bag から外し、mkv に書く(record_topics にも挙げておく)
   - /sensing/camera/roscube/front_wide/image_rect/compressed
   - /sensing/camera/roscube/front_tele/image_rect/compressed
