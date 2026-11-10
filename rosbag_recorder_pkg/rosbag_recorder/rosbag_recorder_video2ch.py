@@ -45,6 +45,7 @@ class TimedRosbagRecorder(Node):
 
     def __init__(self, config_path):
         super().__init__('timed_rosbag_recorder')
+        self.config_path = config_path
         self.load_config(config_path)
 
         self.recording = False
@@ -60,6 +61,9 @@ class TimedRosbagRecorder(Node):
         self.start_fail_count = 0
         self.last_pcap_check = None
         self.lidar_record_mode = self.lidar_mode()  # 起動時に 1 回だけ決める
+        self.camera_record_mode = self.camera_mode()
+        self.video_process = None
+        self.video_start_fail = 0
         self.current_bag_path = None  # 窓の確定処理中のみ実ディレクトリを指す
         # 消去なしモード(2026-09-23 追加、rosbag_recorder.py と同じ): 合図(自動運転・MRM・メモ)が無い bag も消さずに全部残す。
         #   config.yaml の keep_all_bags: true、または keep_all_flag_file(既定 /tmp/rosbag_recorder_keep_all)が存在する間だけ有効。
@@ -102,6 +106,7 @@ class TimedRosbagRecorder(Node):
             WriteSplitEvent, '/events/write_split', self.split_callback, 10)
 
         self.start_recorder()
+        self.start_camera_video()
         # 常駐プロセスの死活監視 (旧実装の毎分再起動に代わる保険)
         self.watchdog_timer = self.create_timer(5.0, self.watchdog)
         self.get_logger().info(f'ON_LANELET_ID: {ON_LANELET_ID} ,OFF_LANELET_ID: {OFF_LANELET_ID}')
@@ -244,7 +249,55 @@ class TimedRosbagRecorder(Node):
         self.get_logger().info(
             f'lidar_record_mode={mode} dropped_from_bag={dropped} '
             f'kept_pointcloud={[t for t in topics if t in set(self.config.get("lidar_pointcloud_topics") or [])]}')
+        if self.camera_record_mode == 'video':
+            cams = set(self.config.get('camera_image_topics') or [])
+            cdrop = [t for t in topics if t in cams]
+            topics = [t for t in topics if t not in cams]
+            self.get_logger().info(f'camera_record_mode=video dropped_from_bag={cdrop}')
+        else:
+            self.get_logger().info(f'camera_record_mode={self.camera_record_mode}')
         return topics
+
+    # ---- カメラの録り方(2026-11-10 追加) -------------------------------------
+    # config.yaml の camera_record_mode で選ぶ。読むのは起動時だけ。
+    #   bag   : bag に JPEG(camera_image_topics)を入れる(既定。キーが無い・打ち間違いもこれ)
+    #   video : bag から camera_image_topics を外し、camera_video_recorder(子プロセス)が H.265 の mkv に書く
+    #   both  : bag にも入れ、mkv にも書く(mkv から戻した bag と、元の JPEG を見比べるため)
+    CAMERA_MODES = ('bag', 'video', 'both')
+
+    def camera_mode(self):
+        mode = str(self.config.get('camera_record_mode', 'bag')).strip()
+        if mode not in self.CAMERA_MODES:
+            self.get_logger().error(
+                f'camera_record_mode={mode!r} is not one of {self.CAMERA_MODES}; using bag')
+            mode = 'bag'
+        return mode
+
+    def start_camera_video(self):
+        if self.camera_record_mode not in ('video', 'both') or self.shutting_down:
+            return
+        try:
+            from ament_index_python.packages import get_package_prefix
+            exe = os.path.join(get_package_prefix('rosbag_recorder'), 'lib', 'rosbag_recorder', 'camera_video_recorder')
+            self.video_process = subprocess.Popen(
+                [exe, self.config_path, '--ros-args', '-r', '__node:=camera_video_recorder'])
+            self.get_logger().info(f'started camera_video_recorder pid={self.video_process.pid}')
+        except Exception as e:  # noqa: BLE001
+            self.video_process = None
+            self.video_start_fail += 1
+            if self.video_start_fail == 1 or self.video_start_fail % 12 == 0:
+                self.get_logger().error(f'camera_video_recorder start failed: {e}')
+
+    def check_camera_video(self):
+        if self.camera_record_mode not in ('video', 'both') or self.shutting_down:
+            return
+        if self.video_process is not None:
+            rc = self.video_process.poll()
+            if rc is None:
+                return
+            self.get_logger().error(f'camera_video_recorder died (exit={rc}); restarting')
+            self.video_process = None
+        self.start_camera_video()
 
     def qos_override_args(self):
         """qos_overrides_path(空なら使わない)を ros2 bag record に渡す。ファイルが無ければ渡さずに録る。"""
@@ -279,6 +332,7 @@ class TimedRosbagRecorder(Node):
         if self.shutting_down:
             return
         self.check_pcap_alive()
+        self.check_camera_video()
         if self.bag_process is None:
             # 起動失敗中(出力先未接続など)のリトライ
             self.start_recorder()
@@ -423,11 +477,21 @@ class TimedRosbagRecorder(Node):
         if self.shutting_down:
             return
         self.shutting_down = True
+        vp = self.video_process
+        if vp is not None and vp.poll() is None:
+            self.get_logger().info('Stopping camera_video_recorder...')
+            vp.send_signal(signal.SIGINT)
         if self.bag_process:
             self.get_logger().info('Stopping rosbag...')
             self.bag_process.send_signal(signal.SIGINT)
             self.bag_process.wait()
             self.bag_process = None
+        if vp is not None:
+            try:
+                vp.wait(timeout=40)
+            except subprocess.TimeoutExpired:
+                self.get_logger().error('camera_video_recorder did not stop in 40 s; leaving it (its .part files stay)')
+            self.video_process = None
 
         # 一度も録画を開始できていなければ確定処理は不要
         if self.spool_dir is None:

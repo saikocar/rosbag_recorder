@@ -24,6 +24,7 @@ setup(
         'console_scripts': [
             'rosbag_recorder = rosbag_recorder.rosbag_recorder:main',
             'rosbag_recorder_video2ch = rosbag_recorder.rosbag_recorder_video2ch:main',
+            'camera_video_recorder = rosbag_recorder.camera_video_recorder:main',
         ],
     },
 )

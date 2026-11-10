@@ -211,6 +211,24 @@ lidar_pointcloud_topics:  # pcap のとき bag から外す点群(record_topics 
 pcap_mode_keep_pointcloud_topics: []  # pcap のときも bag に残す点群(作り直しが実機と同じかを見張るために 1 台残すなら、ここに挙げる)
 pcap_dir: /media/sit/ROSBAG/pcap_save/  # pcap の置き場。pcap のとき、新しいファイルができているかを 1 分ごとに見て、無ければエラーを出す
 qos_overrides_path: ''  # ros2 bag record の受け口の指定(--qos-profile-overrides-path のファイル)。空なら使わない
+# カメラの録り方(2026-11-10 追加)。変えたら recorder を起こし直す(~/restart_rosbag_recorder.sh か Autoware の起こし直し)。
+#   bag   : bag に JPEG(下の camera_image_topics)を入れる(これまでどおり。5 台で毎秒 約 17 MB)
+#   video : bag から camera_image_topics を外し、camera_video_recorder が GPU の H.265 で 1 分ごとの mkv に書く。camera_info は bag に残る。
+#           bag に戻すのは garage2 で dw-notes sensing/tools/camera_video/video_to_bag.py(画質は少し落ちる。元の JPEG とバイト列までは同じにならない)
+#   both  : bag にも入れ、mkv にも書く(戻した絵と元の JPEG を見比べるため)
+camera_record_mode: bag
+camera_image_topics:  # video のとき bag から外し、mkv に書く(record_topics にも挙げておく)
+  - /sensing/camera/roscube/front_wide/image_rect/compressed
+  - /sensing/camera/roscube/front_tele/image_rect/compressed
+  - /sensing/camera/roscube/front_top/image_rect/compressed
+  - /sensing/camera/roscube/front_left/image_rect/compressed
+  - /sensing/camera/roscube/front_right/image_rect/compressed
+video_dir: /media/sit/ROSBAG/video_save/  # <video_dir>/<YYMMDD>/<カメラ>_<最初のコマの時刻>.mkv と .stamps.tsv(コマごとの元の時刻)
+video_codec: h265  # h265 / h264(nuvo の GPU の NVENC)
+video_qp: 20  # 画質の段階(小さいほどきれいで大きい)。測った結果は dw-notes sensing/tools/camera_video/README.md
+video_gop: 18  # この枚数ごとに、ほかのコマに頼らない絵(キーフレーム)を入れる(約 1 秒)
+video_segment_sec: 60  # 1 ファイルの秒数(撮像の時刻の分の切り目で切る)
+video_prune_grace_sec: 1800  # bag が残っていない時間帯の動画を、この秒数たってから消す(pcap と同じ)
 bag_output_dir: /media/sit/ROSBAG/rosbag_save/  # ベースディレクトリ
 remote_log_hosts:  # MRM時にdmesg/journalctlを取得するリモートホスト（ssh接続可能であること）
   - sit@roscube
