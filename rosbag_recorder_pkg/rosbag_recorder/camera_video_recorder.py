@@ -182,7 +182,10 @@ class CameraVideoRecorder(Node):
             why = f'{c["mount"]}/{c["marker"]} が無い(記録用のディスクではない)'
         else:
             try:
-                free = shutil.disk_usage(c['mount'] or c['dir']).free / 1e9
+                where = c['mount'] or c['dir']
+                while where and not os.path.exists(where):   # まだ作っていないフォルダなら、ある所まで親をたどる
+                    where = os.path.dirname(where.rstrip('/'))
+                free = shutil.disk_usage(where or '/').free / 1e9
                 if free < c['min_free_gb']:
                     why = f'空き {free:.0f} GB < {c["min_free_gb"]} GB'
             except OSError as e:
