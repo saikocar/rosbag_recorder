@@ -127,19 +127,23 @@ class CameraVideoRecorder(Node):
         super().__init__('camera_video_recorder')
         with open(config_path) as f:
             conf = yaml.safe_load(f)
+
+        def text(key, default):  # 空欄(YAML の null)は '' として読む(str(None) = 'None' にしない)
+            v = conf.get(key, default)
+            return '' if v is None else str(v)
         self.cfg = {
-            'mode': str(conf.get('camera_record_mode', 'bag')).strip(),
+            'mode': text('camera_record_mode', 'bag').strip(),
             'topics': list(conf.get('camera_image_topics') or []),
-            'dir': str(conf.get('video_dir', '/media/sit/ROSBAG/video_save/')),
+            'dir': text('video_dir', '/media/sit/ROSBAG/video_save/'),
             'segment': int(conf.get('video_segment_sec', 60)),
-            'codec': str(conf.get('video_codec', 'h265')),
+            'codec': text('video_codec', 'h265'),
             'qp': int(conf.get('video_qp', 20)),
             'gop': int(conf.get('video_gop', 18)),
             'queue_mb': int(conf.get('video_queue_mb', 256)),
-            'mount': str(conf.get('video_mount', '/media/sit/ROSBAG')),
-            'marker': str(conf.get('video_marker', 'DISK_ID.txt')),
+            'mount': text('video_mount', '/media/sit/ROSBAG'),
+            'marker': text('video_marker', 'DISK_ID.txt'),
             'min_free_gb': float(conf.get('video_min_free_gb', 30)),
-            'bag_root': str(conf.get('bag_output_dir', '')),
+            'bag_root': text('bag_output_dir', ''),
             'grace': float(conf.get('video_prune_grace_sec', 1800)),
         }
         self.get_logger().info(f'version {version_string()} config {config_path} {self.cfg}')
