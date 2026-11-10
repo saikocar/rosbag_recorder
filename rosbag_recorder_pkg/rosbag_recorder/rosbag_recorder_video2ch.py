@@ -341,8 +341,9 @@ class TimedRosbagRecorder(Node):
         if rc is None:
             return
         self.get_logger().error(
-            f'rosbag process died unexpectedly (exit={rc}); '
+            f'rosbag process died unexpectedly (exit={rc}{self._signal_name(rc)}); '
             f'leftover spool: {self.spool_dir}; restarting')
+        self._mark_bag_exit(self.spool_dir, rc, 'while recording (watchdog)')
         self.bag_process = None
         if self.video_enabled:
             self.video1.stop()
@@ -459,6 +460,28 @@ class TimedRosbagRecorder(Node):
         self.start_video_window(now)
         return dest
 
+    @staticmethod
+    def _signal_name(rc):
+        if rc is not None and rc < 0:
+            try:
+                return f', {signal.Signals(-rc).name}'
+            except ValueError:
+                return f', signal {-rc}'
+        return ''
+
+    def _mark_bag_exit(self, bag_dir, rc, when):
+        """ros2 bag record が異常な終わり方をした bag のフォルダに印(ROSBAG_RECORD_EXIT.txt)を残す(2026-11-10)。
+        印があれば、その bag の mcap は終わりまで書かれていないことがある(metadata.yaml は reindex が作り直すことがある)。"""
+        if not bag_dir or not os.path.isdir(bag_dir):
+            return
+        try:
+            with open(os.path.join(bag_dir, 'ROSBAG_RECORD_EXIT.txt'), 'a') as f:
+                f.write(f'{datetime.now().isoformat(timespec="seconds")}\t'
+                        f'ros2 bag record exited abnormally {when}: exit={rc}{self._signal_name(rc)}\t'
+                        f'the mcap may lack its footer; a metadata.yaml here (if any) was made afterwards by ros2 bag reindex\n')
+        except OSError as e:
+            self.get_logger().warn(f'could not write exit marker in {bag_dir}: {e}')
+
     def _keep_all_active(self) -> bool:
         """消去なしモードが有効か(config の keep_all_bags、またはフラグファイルの存在)。"""
         return self.keep_all_bags or os.path.exists(self.keep_all_flag_file)
@@ -484,8 +507,16 @@ class TimedRosbagRecorder(Node):
         if self.bag_process:
             self.get_logger().info('Stopping rosbag...')
             self.bag_process.send_signal(signal.SIGINT)
-            self.bag_process.wait()
+            stop_rc = self.bag_process.wait()
             self.bag_process = None
+            if stop_rc != 0:
+                # 2026-11-10 12:36: SIGINT の直後に ros2 bag record が librosbag2_transport.so の中で segfault し(exit=-11)、
+                # mcap の終わりと metadata.yaml が無いまま「Final bag preserved」とだけ出ていた
+                self.get_logger().error(
+                    f'rosbag process exited abnormally on stop (exit={stop_rc}{self._signal_name(stop_rc)}); '
+                    f'the last bag may lack its mcap footer and metadata.yaml (reindex will try to rebuild metadata)')
+        else:
+            stop_rc = 0
         if vp is not None:
             try:
                 vp.wait(timeout=40)
@@ -508,6 +539,8 @@ class TimedRosbagRecorder(Node):
                 last_file = files[-1]
                 extras = files[:-1]
         dest = self.finalize_window(last_file, final=True)
+        if stop_rc != 0:
+            self._mark_bag_exit(dest, stop_rc, 'on stop (SIGINT)')
         for f in extras:
             # 未処理の分割イベント分。データを失わないよう最終窓のディレクトリへ退避
             self.get_logger().warn(f'moving unprocessed split file into final bag dir: {f}')
