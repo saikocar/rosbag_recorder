@@ -1,5 +1,6 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.executors import ExternalShutdownException
 from std_msgs.msg import Bool, String
 import yaml
 import subprocess
@@ -480,7 +481,9 @@ def main(args=None):
     recorder = TimedRosbagRecorder(config_path)
     try:
         rclpy.spin(recorder)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
+        # SIGTERM でも最後の bag を閉じ、終了コード 0 で抜ける(2026-11-10)。ExternalShutdownException のまま落ちると
+        # 終了コード 1 になり、ノードの見張り(external_autoware_log_monitor)が「異常終了」として Autoware ごと起こし直す
         recorder.get_logger().info('Shutting down...')
         recorder.stop_bag();
     finally:
