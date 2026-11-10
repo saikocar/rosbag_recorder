@@ -146,6 +146,7 @@ class CameraVideoRecorder(Node):
             'min_free_gb': float(conf.get('video_min_free_gb', 30)),
             'bag_root': text('bag_output_dir', ''),
             'grace': float(conf.get('video_prune_grace_sec', 1800)),
+            'sub_depth': int(conf.get('video_sub_depth', 90)),
         }
         self.get_logger().info(f'version {version_string()} config {config_path} {self.cfg}')
         if self.cfg['mode'] not in ('video', 'both'):
@@ -164,7 +165,9 @@ class CameraVideoRecorder(Node):
         self.bag_end_cache = {}
         self.last_prune = 0
         self.stopping = False
-        qos = QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=30, reliability=ReliabilityPolicy.RELIABLE)
+        # 受け取りの待ち行列。分の切り目で 5 台の前のファイルを順に閉じきる間(実機で約 1.5 秒)、受け取りの処理が止まり、絵はここに溜まる。
+        # 30 枚(18 Hz で約 1.66 秒)では余裕が 0.1 秒しかなく、起動の直後(最初の切り目)には溢れて 2〜3 秒分を落としていた(2026-11-10 nuvo)。
+        qos = QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=self.cfg['sub_depth'], reliability=ReliabilityPolicy.RELIABLE)
         if self.cfg['mode'] in ('video', 'both'):
             for t in self.cfg['topics']:
                 cam = cam_name(t)

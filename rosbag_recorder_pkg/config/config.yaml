@@ -229,6 +229,7 @@ video_qp: 20  # 画質の段階(小さいほどきれいで大きい)。測っ�
 video_gop: 18  # この枚数ごとに、ほかのコマに頼らない絵(キーフレーム)を入れる(約 1 秒)
 video_segment_sec: 60  # 1 ファイルの秒数(撮像の時刻の分の切り目で切る)
 video_prune_grace_sec: 1800  # bag が残っていない時間帯の動画を、この秒数たってから消す(pcap と同じ)
+video_sub_depth: 90  # 受け取りの待ち行列の枚数(1 台あたり)。分の切り目で前のファイルを閉じる間(約 1.5 秒)ここに溜まる。30 では起動の直後に溢れた(2026-11-10)
 bag_output_dir: /media/sit/ROSBAG/rosbag_save/  # ベースディレクトリ
 remote_log_hosts:  # MRM時にdmesg/journalctlを取得するリモートホスト（ssh接続可能であること）
   - sit@roscube
