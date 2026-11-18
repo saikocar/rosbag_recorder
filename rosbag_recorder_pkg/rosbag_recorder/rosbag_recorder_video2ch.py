@@ -88,9 +88,10 @@ class TimedRosbagRecorder(Node):
         self.position = None
         # config.yamlのvideo_enabled: falseでffmpegによる動画録画を無効化できる(既定: 有効)
         self.video_enabled = bool(self.config.get('video_enabled', True))
-        self.video1 = VideoRecorder()
+        # 動画を使わない設定なら作らない(作るだけで ffmpeg を呼ぶ。ffmpeg が無い環境で起動できなかった。2026-11-19)
+        self.video1 = VideoRecorder() if self.video_enabled else None
         self.video_source1=RawVideoSource('/dev/v4l/by-id/usb-MACROSILICON_C7_USB3.0_Video_19323064-video-index0', 'v4l2', 'mjpeg', (1920, 1080), 30),
-        self.video2 = VideoRecorder()
+        self.video2 = VideoRecorder() if self.video_enabled else None
         self.video_source2=RawVideoSource('/dev/v4l/by-id/usb-MACROSILICON_C7_USB3.0_Video_41475953-video-index0', 'v4l2', 'mjpeg', (1920, 1080), 30),
         #self.video3 = VideoRecorder()
         #self.video_source3=RawVideoSource('/dev/v4l/by-id/usb-MACROSILICON_C7_USB3.0_Video_45720291-video-index0', 'v4l2', 'mjpeg', (1920, 1080), 30),
