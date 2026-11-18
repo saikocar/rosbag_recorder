@@ -12,8 +12,16 @@ import signal
 import shutil
 import sys
 
-from autoware_auto_system_msgs.msg import AutowareState
-from rviz_2d_overlay_msgs.msg import OverlayText
+# 型が無い環境でも動かす(2026-11-19。ava1 の VLS-128 のコンテナは Autoware 0.67 で、この 2 つの型を持たない)。
+# 無いときは、その型を使う合図(自動運転が切れた / 区間の出入り)を聞かないだけで、ほかは同じ。
+try:
+    from autoware_auto_system_msgs.msg import AutowareState
+except ImportError:
+    AutowareState = None
+try:
+    from rviz_2d_overlay_msgs.msg import OverlayText
+except ImportError:
+    OverlayText = None
 from nav_msgs.msg import Odometry
 from rosbag2_interfaces.msg import WriteSplitEvent
 
@@ -51,7 +59,7 @@ class TimedRosbagRecorder(Node):
         self.recording = False
         self.should_record = False
         self.prev_should_record = False
-        self.prev_control_state = AutowareState.INITIALIZING
+        self.prev_control_state = AutowareState.INITIALIZING if AutowareState else None
         self.in_segment = False
         self.segment_window_count = 0
         self.bag_process = None
@@ -87,18 +95,26 @@ class TimedRosbagRecorder(Node):
         #self.video3 = VideoRecorder()
         #self.video_source3=RawVideoSource('/dev/v4l/by-id/usb-MACROSILICON_C7_USB3.0_Video_45720291-video-index0', 'v4l2', 'mjpeg', (1920, 1080), 30),
 
-        self.control_sub = self.create_subscription(
-            AutowareState, self.config['control_topic'], self.control_callback, 10)
+        if AutowareState is not None:
+            self.control_sub = self.create_subscription(
+                AutowareState, self.config['control_topic'], self.control_callback, 10)
+        else:
+            self.get_logger().warn(
+                'autoware_auto_system_msgs is not available; not listening to control_topic (no "AutoDrive disengage" mark)')
         self.memo_sub = self.create_subscription(
             String, self.config['memo_topic'], self.memo_callback, 10)
         # 会話・警告音声の文字起こし(ava1 の audio_transcriber、1 発話 1 行)。窓の締めで dialog.txt に書く(2026-10-07)
         self.dialog_lines = []
         self.transcript_sub = self.create_subscription(
             String, self.config.get('transcript_topic', '/audio/transcript'), self.transcript_callback, 100)
-        self.lanelet_info_sub = self.create_subscription(
-            OverlayText,
-            self.config.get('lanelet_info_topic', '/map/lanelet_param/current_lanelet_info_text'),
-            self.lanelet_info_callback, 10)
+        if OverlayText is not None:
+            self.lanelet_info_sub = self.create_subscription(
+                OverlayText,
+                self.config.get('lanelet_info_topic', '/map/lanelet_param/current_lanelet_info_text'),
+                self.lanelet_info_callback, 10)
+        else:
+            self.get_logger().warn(
+                'rviz_2d_overlay_msgs is not available; not listening to the lanelet info (no segment marks)')
         self.subscription = self.create_subscription(
             Odometry,'/localization/kinematic_state',self.kinematic_state_callback,10)
         # 常駐recorderの分割完了イベント
@@ -149,7 +165,7 @@ class TimedRosbagRecorder(Node):
         self.memo_concat(text)
         self.previous_memo_treat()
 
-    def lanelet_info_callback(self, msg: OverlayText):
+    def lanelet_info_callback(self, msg):
         match = re.search(r'Current ID\s*:\s*(\d+)', msg.text)
         if not match:
             return
